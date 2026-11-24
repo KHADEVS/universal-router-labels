@@ -1,0 +1,16 @@
+{
+  "name": "universal-router-labels",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ERC-7730 labels for the Uniswap Universal Router, checked against Mainnet transactions",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "gen": "node gen.mjs",
+    "test": "node --test test.mjs && node survey/unpack.mjs && node run-sample.mjs survey/sample.json"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ethers": "6.13.4"
+  }
+}
