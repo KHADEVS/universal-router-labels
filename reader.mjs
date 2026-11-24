@@ -1,5 +1,5 @@
 // A small reader for the part of the draft these descriptors use. It refuses (throws) instead of guessing.
-import { AbiCoder, FunctionFragment, ParamType, id } from 'ethers';
+import { AbiCoder, FunctionFragment, ParamType, getAddress, id } from 'ethers';
 const coder = AbiCoder.defaultAbiCoder();
 
 export class Refused extends Error {}
@@ -65,7 +65,9 @@ function format(f, value, scope, env) {
   const p = f.params ?? {};
   switch (f.format ?? 'raw') {
     case 'tokenAmount': {
-      const token = (p.token ?? resolve(p.tokenPath, scope)).toLowerCase();
+      let token = p.token ?? resolve(p.tokenPath, scope);
+      if (Array.isArray(token)) token = token[scope.each]; // tokenPath and path iterate the same array
+      token = token.toLowerCase();
       const meta = token === p.nativeCurrencyAddress?.toLowerCase() ? env.native : env.token(token);
       const symbol = meta?.symbol ?? `(unknown token ${token})`;
       if (p.threshold && value >= BigInt(p.threshold)) return `${p.message} ${symbol}`;
@@ -76,12 +78,14 @@ function format(f, value, scope, env) {
       return `${units(value, env.native.decimals)} ${env.native.symbol}`;
     case 'addressName': {
       const a = value.toLowerCase();
+      if (env.registry) return getAddress(p.senderAddress?.some((x) => x.toLowerCase() === a) ? scope.tx.from : a);
       if (p.senderAddress?.some((x) => x.toLowerCase() === a) || a === scope.tx.from.toLowerCase()) return 'You';
       if (a === '0x0000000000000000000000000000000000000002' || a === scope.tx.to.toLowerCase()) return 'Uniswap router'; // not expressible today, see README
       if (p.types?.includes('token') && env.token(a)) return env.token(a).symbol;
       return value;
     }
     case 'date': if (value > 8640000000000n) return 'timestamp ' + value; // beyond what a date can show, e.g. type(uint48).max
+      if (env.registry) return new Date(Number(value) * 1000).toISOString().slice(0, 19).replace('T', ' ') + 'Z';
       return new Date(Number(value) * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
     case 'unit': return `${units(value, p.decimals)}${p.base}`;
     default: return String(value);
@@ -98,12 +102,13 @@ function show(fields, scope, env, out) {
   for (const f of fields) {
     if (f.format === 'customEncoding') continue; // decoded before the fields, see prepare()
     if (f.switch) { showSwitch(f, scope, env, out); continue; }
+    if (f.interaction) { interaction(f.interaction, scope, env, out); continue; }
     if (f.visible === 'never') continue;
     const value = resolve(f.path, scope);
-    for (const v of Array.isArray(value) ? value : [value]) {
-      if (f.visible?.ifNotIn?.some((x) => same(x, v))) continue;
-      out.push({ label: f.label, value: format(f, v, scope, env) });
-    }
+    (Array.isArray(value) ? value : [value]).forEach((v, each) => {
+      if (f.visible?.ifNotIn?.some((x) => same(x, v))) return;
+      out.push({ label: f.label, value: format(f, v, { ...scope, each }, env) });
+    });
   }
 }
 // customEncoding fields replace the raw bytes they describe, so that paths can go through them.
@@ -132,15 +137,34 @@ function showSwitch(f, scope, env, out) {
     inner.local = decodeTuple(params, payload);
     prepare(spec.fields, inner.local);
     const step = []; show(spec.fields, inner, env, step);
-    out.push({ label: spec.intent, steps: step });
+    out.push({ label: spec.intent, group: f.label, steps: step });
   });
+}
+
+// A call the contract builds itself. Only calls to the contract being described are followed: the format is
+// looked up in the same descriptor, and the arguments are the decoded values, not bytes.
+const MAX_DEPTH = 4;
+function interaction(i, scope, env, out) {
+  const to = resolve(i.to, scope);
+  if (String(to).toLowerCase() !== scope.tx.to.toLowerCase()) refuse('interaction with another contract');
+  if ((scope.depth ?? 0) >= MAX_DEPTH) refuse('interactions nested too deep');
+  const wanted = FunctionFragment.from('function ' + i.signature).format('sighash');
+  const found = Object.entries(scope.descriptor.display.formats).find(([s]) => FunctionFragment.from('function ' + s).format('sighash') === wanted);
+  if (!found) refuse('no format for ' + i.signature);
+  const fn = FunctionFragment.from('function ' + found[0]);
+  // deep copy: prepare() replaces raw bytes by their decoded form
+  const args = structuredClone(Object.fromEntries(fn.inputs.map((p, k) => [p.name, resolve(i.args[k].path, scope)])));
+  // the inner call carries no native value of its own
+  const inner = { ...scope, tx: { ...scope.tx, value: 0n }, args, local: undefined, index: undefined, depth: (scope.depth ?? 0) + 1 };
+  prepare(found[1].fields, inner.args);
+  show(found[1].fields, inner, env, out);
 }
 
 export function render(descriptor, tx, env) {
   for (const [signature, spec] of Object.entries(descriptor.display.formats)) {
     const fn = FunctionFragment.from('function ' + signature);
     if (id(fn.format('sighash')).slice(0, 10) !== tx.input.slice(0, 10)) continue;
-    const scope = { tx: { ...tx, value: BigInt(tx.value) }, args: decodeTuple([...fn.inputs], '0x' + tx.input.slice(10)) };
+    const scope = { descriptor, tx: { ...tx, value: BigInt(tx.value) }, args: decodeTuple([...fn.inputs], '0x' + tx.input.slice(10)) };
     prepare(spec.fields, scope.args);
     const out = []; show(spec.fields, scope, env, out);
     return { intent: spec.intent, fields: out };

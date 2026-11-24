@@ -1080,6 +1080,145 @@
                     ]
                   }
                 },
+                "0x03": {
+                  "(((address token,uint160 amount,uint48 expiration,uint48 nonce)[] details,address spender,uint256 sigDeadline) permit,bytes signature)": {
+                    "intent": "Approve",
+                    "fields": [
+                      {
+                        "path": "~.permit.details.[].amount",
+                        "label": "Allow Spending",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.permit.details.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0xffffffffffffffffffffffffffffffffffffffff",
+                          "message": "Unlimited"
+                        }
+                      },
+                      {
+                        "path": "~.permit.spender",
+                        "label": "Spender",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.permit.details.[].expiration",
+                        "label": "Approval Expires",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0d": {
+                  "((address from,address to,uint160 amount,address token)[] transfers)": {
+                    "intent": "Send",
+                    "fields": [
+                      {
+                        "path": "~.transfers.[].amount",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.transfers.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.transfers.[].to",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x13": {
+                  "((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,uint160 sqrtPriceX96)": {
+                    "intent": "Create pool",
+                    "fields": [
+                      {
+                        "path": "~.poolKey.currency0",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.currency1",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.hooks",
+                        "label": "Pool hook",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "contract"
+                          ]
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            "0x0000000000000000000000000000000000000000"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.sqrtPriceX96",
+                        "label": "Starting Price (sqrt, Q96)",
+                        "format": "raw"
+                      }
+                    ]
+                  }
+                },
+                "0x21": {
+                  "(bytes commands,bytes[] inputs)": {
+                    "intent": "Sub-plan",
+                    "fields": [
+                      {
+                        "interaction": {
+                          "to": "@.to",
+                          "signature": "execute(bytes,bytes[])",
+                          "args": [
+                            {
+                              "path": "~.commands"
+                            },
+                            {
+                              "path": "~.inputs"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
                 "$default": "reject"
               }
             }
@@ -2149,6 +2288,145 @@
                             },
                             "$default": "reject"
                           }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x03": {
+                  "(((address token,uint160 amount,uint48 expiration,uint48 nonce)[] details,address spender,uint256 sigDeadline) permit,bytes signature)": {
+                    "intent": "Approve",
+                    "fields": [
+                      {
+                        "path": "~.permit.details.[].amount",
+                        "label": "Allow Spending",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.permit.details.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0xffffffffffffffffffffffffffffffffffffffff",
+                          "message": "Unlimited"
+                        }
+                      },
+                      {
+                        "path": "~.permit.spender",
+                        "label": "Spender",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.permit.details.[].expiration",
+                        "label": "Approval Expires",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0d": {
+                  "((address from,address to,uint160 amount,address token)[] transfers)": {
+                    "intent": "Send",
+                    "fields": [
+                      {
+                        "path": "~.transfers.[].amount",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.transfers.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.transfers.[].to",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x13": {
+                  "((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,uint160 sqrtPriceX96)": {
+                    "intent": "Create pool",
+                    "fields": [
+                      {
+                        "path": "~.poolKey.currency0",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.currency1",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.hooks",
+                        "label": "Pool hook",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "contract"
+                          ]
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            "0x0000000000000000000000000000000000000000"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.sqrtPriceX96",
+                        "label": "Starting Price (sqrt, Q96)",
+                        "format": "raw"
+                      }
+                    ]
+                  }
+                },
+                "0x21": {
+                  "(bytes commands,bytes[] inputs)": {
+                    "intent": "Sub-plan",
+                    "fields": [
+                      {
+                        "interaction": {
+                          "to": "@.to",
+                          "signature": "execute(bytes,bytes[])",
+                          "args": [
+                            {
+                              "path": "~.commands"
+                            },
+                            {
+                              "path": "~.inputs"
+                            }
+                          ]
                         }
                       }
                     ]

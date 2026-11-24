@@ -7,7 +7,7 @@
   "type": "module",
   "scripts": {
     "gen": "node gen.mjs",
-    "test": "node --test test.mjs && node survey/unpack.mjs && node run-sample.mjs survey/sample.json"
+    "test": "node --test test.mjs && node survey/unpack.mjs && node run-sample.mjs survey/sample.json && node run-chains.mjs"
   },
   "dependencies": {
     "ajv": "8.17.1",

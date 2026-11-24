@@ -1084,6 +1084,145 @@
                     ]
                   }
                 },
+                "0x03": {
+                  "(((address token,uint160 amount,uint48 expiration,uint48 nonce)[] details,address spender,uint256 sigDeadline) permit,bytes signature)": {
+                    "intent": "Approve",
+                    "fields": [
+                      {
+                        "path": "~.permit.details.[].amount",
+                        "label": "Allow Spending",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.permit.details.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0xffffffffffffffffffffffffffffffffffffffff",
+                          "message": "Unlimited"
+                        }
+                      },
+                      {
+                        "path": "~.permit.spender",
+                        "label": "Spender",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.permit.details.[].expiration",
+                        "label": "Approval Expires",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0d": {
+                  "((address from,address to,uint160 amount,address token)[] transfers)": {
+                    "intent": "Send",
+                    "fields": [
+                      {
+                        "path": "~.transfers.[].amount",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.transfers.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.transfers.[].to",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x13": {
+                  "((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,uint160 sqrtPriceX96)": {
+                    "intent": "Create pool",
+                    "fields": [
+                      {
+                        "path": "~.poolKey.currency0",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.currency1",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.hooks",
+                        "label": "Pool hook",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "contract"
+                          ]
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            "0x0000000000000000000000000000000000000000"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.sqrtPriceX96",
+                        "label": "Starting Price (sqrt, Q96)",
+                        "format": "raw"
+                      }
+                    ]
+                  }
+                },
+                "0x21": {
+                  "(bytes commands,bytes[] inputs)": {
+                    "intent": "Sub-plan",
+                    "fields": [
+                      {
+                        "interaction": {
+                          "to": "@.to",
+                          "signature": "execute(bytes,bytes[])",
+                          "args": [
+                            {
+                              "path": "~.commands"
+                            },
+                            {
+                              "path": "~.inputs"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
                 "0x07": {
                   "(address token,address recipient,uint256 portion)": {
                     "intent": "Fee",
@@ -2203,6 +2342,145 @@
                     ]
                   }
                 },
+                "0x03": {
+                  "(((address token,uint160 amount,uint48 expiration,uint48 nonce)[] details,address spender,uint256 sigDeadline) permit,bytes signature)": {
+                    "intent": "Approve",
+                    "fields": [
+                      {
+                        "path": "~.permit.details.[].amount",
+                        "label": "Allow Spending",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.permit.details.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0xffffffffffffffffffffffffffffffffffffffff",
+                          "message": "Unlimited"
+                        }
+                      },
+                      {
+                        "path": "~.permit.spender",
+                        "label": "Spender",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.permit.details.[].expiration",
+                        "label": "Approval Expires",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0d": {
+                  "((address from,address to,uint160 amount,address token)[] transfers)": {
+                    "intent": "Send",
+                    "fields": [
+                      {
+                        "path": "~.transfers.[].amount",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.transfers.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.transfers.[].to",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x13": {
+                  "((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,uint160 sqrtPriceX96)": {
+                    "intent": "Create pool",
+                    "fields": [
+                      {
+                        "path": "~.poolKey.currency0",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.currency1",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.hooks",
+                        "label": "Pool hook",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "contract"
+                          ]
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            "0x0000000000000000000000000000000000000000"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.sqrtPriceX96",
+                        "label": "Starting Price (sqrt, Q96)",
+                        "format": "raw"
+                      }
+                    ]
+                  }
+                },
+                "0x21": {
+                  "(bytes commands,bytes[] inputs)": {
+                    "intent": "Sub-plan",
+                    "fields": [
+                      {
+                        "interaction": {
+                          "to": "@.to",
+                          "signature": "execute(bytes,bytes[])",
+                          "args": [
+                            {
+                              "path": "~.commands"
+                            },
+                            {
+                              "path": "~.inputs"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
                 "0x07": {
                   "(address token,address recipient,uint256 portion)": {
                     "intent": "Fee",
@@ -2250,6 +2528,1264 @@
                 },
                 "$default": "reject"
               }
+            }
+          }
+        ]
+      },
+      "executeSigned(bytes commands,bytes[] inputs,bytes32 intent,bytes32 data,bool verifySender,bytes32 nonce,bytes signature,uint256 deadline)": {
+        "$id": "execute signed",
+        "intent": "Uniswap trade",
+        "fields": [
+          {
+            "path": "@.value",
+            "label": "Native Amount",
+            "format": "amount",
+            "visible": {
+              "ifNotIn": [
+                0
+              ]
+            }
+          },
+          {
+            "path": "#.commands",
+            "visible": "never",
+            "format": "customEncoding",
+            "params": {
+              "type": "sequence",
+              "element": {
+                "type": "uint",
+                "bytes": 1
+              }
+            }
+          },
+          {
+            "path": "#.inputs.[]",
+            "label": "Step",
+            "switch": {
+              "expression": {
+                "path": "#.commands.[$index]",
+                "mask": "0x7f"
+              },
+              "cases": {
+                "0x00": {
+                  "(address recipient,uint256 amountIn,uint256 amountOutMinimum,bytes path,bool payerIsUser,uint256[] minHopPriceX36)": {
+                    "intent": "Swap",
+                    "fields": [
+                      {
+                        "path": "~.path",
+                        "format": "customEncoding",
+                        "params": {
+                          "type": "object",
+                          "entries": [
+                            {
+                              "name": "first",
+                              "schema": {
+                                "type": "address",
+                                "bytes": 20
+                              },
+                              "visible": "never"
+                            },
+                            {
+                              "name": "hops",
+                              "visible": "never",
+                              "schema": {
+                                "type": "sequence",
+                                "element": {
+                                  "type": "object",
+                                  "entries": [
+                                    {
+                                      "name": "fee",
+                                      "schema": {
+                                        "type": "uint",
+                                        "bytes": 3
+                                      }
+                                    },
+                                    {
+                                      "name": "token",
+                                      "schema": {
+                                        "type": "address",
+                                        "bytes": 20
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.amountIn",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.path.first",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                          "message": "Entire router balance"
+                        }
+                      },
+                      {
+                        "path": "~.amountOutMinimum",
+                        "label": "Minimum Output",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.path.hops.[-1].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.payerIsUser",
+                        "label": "Paid by you",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            true
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x01": {
+                  "(address recipient,uint256 amountOut,uint256 amountInMaximum,bytes path,bool payerIsUser,uint256[] minHopPriceX36)": {
+                    "intent": "Swap",
+                    "fields": [
+                      {
+                        "path": "~.path",
+                        "format": "customEncoding",
+                        "params": {
+                          "type": "object",
+                          "entries": [
+                            {
+                              "name": "first",
+                              "schema": {
+                                "type": "address",
+                                "bytes": 20
+                              },
+                              "visible": "never"
+                            },
+                            {
+                              "name": "hops",
+                              "visible": "never",
+                              "schema": {
+                                "type": "sequence",
+                                "element": {
+                                  "type": "object",
+                                  "entries": [
+                                    {
+                                      "name": "fee",
+                                      "schema": {
+                                        "type": "uint",
+                                        "bytes": 3
+                                      }
+                                    },
+                                    {
+                                      "name": "token",
+                                      "schema": {
+                                        "type": "address",
+                                        "bytes": 20
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.amountInMaximum",
+                        "label": "Maximum to Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.path.hops.[-1].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.amountOut",
+                        "label": "Receive",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.path.first",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.payerIsUser",
+                        "label": "Paid by you",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            true
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x02": {
+                  "(address token,address recipient,uint160 amount)": {
+                    "intent": "Send",
+                    "fields": [
+                      {
+                        "path": "~.amount",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x04": {
+                  "(address token,address recipient,uint256 amountMinimum)": {
+                    "intent": "Collect",
+                    "fields": [
+                      {
+                        "path": "~.amountMinimum",
+                        "label": "Collect at Least",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x05": {
+                  "(address token,address recipient,uint256 value)": {
+                    "intent": "Send",
+                    "fields": [
+                      {
+                        "path": "~.value",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                          "message": "Entire router balance"
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x06": {
+                  "(address token,address recipient,uint256 bips)": {
+                    "intent": "Fee",
+                    "fields": [
+                      {
+                        "path": "~.bips",
+                        "label": "Fee",
+                        "format": "unit",
+                        "params": {
+                          "base": "%",
+                          "decimals": 2,
+                          "prefix": false
+                        }
+                      },
+                      {
+                        "path": "~.token",
+                        "label": "Fee Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Fee Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x08": {
+                  "(address recipient,uint256 amountIn,uint256 amountOutMinimum,address[] path,bool payerIsUser,uint256[] minHopPriceX36)": {
+                    "intent": "Swap",
+                    "fields": [
+                      {
+                        "path": "~.amountIn",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.path.[0]",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                          "message": "Entire router balance"
+                        }
+                      },
+                      {
+                        "path": "~.amountOutMinimum",
+                        "label": "Minimum Output",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.path.[-1]",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.payerIsUser",
+                        "label": "Paid by you",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            true
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x09": {
+                  "(address recipient,uint256 amountOut,uint256 amountInMaximum,address[] path,bool payerIsUser,uint256[] minHopPriceX36)": {
+                    "intent": "Swap",
+                    "fields": [
+                      {
+                        "path": "~.amountInMaximum",
+                        "label": "Maximum to Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.path.[0]",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.amountOut",
+                        "label": "Receive",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.path.[-1]",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.payerIsUser",
+                        "label": "Paid by you",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            true
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0a": {
+                  "(((address token,uint160 amount,uint48 expiration,uint48 nonce) details,address spender,uint256 sigDeadline) permit,bytes signature)": {
+                    "intent": "Approve",
+                    "fields": [
+                      {
+                        "path": "~.permit.details.amount",
+                        "label": "Allow Spending",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.permit.details.token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0xffffffffffffffffffffffffffffffffffffffff",
+                          "message": "Unlimited"
+                        }
+                      },
+                      {
+                        "path": "~.permit.spender",
+                        "label": "Spender",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.permit.details.expiration",
+                        "label": "Approval Expires",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0b": {
+                  "(address recipient,uint256 amount)": {
+                    "intent": "Wrap",
+                    "fields": [
+                      {
+                        "path": "~.amount",
+                        "label": "Wrap",
+                        "format": "tokenAmount",
+                        "params": {
+                          "token": "0x0000000000000000000000000000000000000000",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                          "message": "Entire router balance"
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0c": {
+                  "(address recipient,uint256 amountMinimum)": {
+                    "intent": "Unwrap",
+                    "fields": [
+                      {
+                        "path": "~.amountMinimum",
+                        "label": "Minimum to Receive",
+                        "format": "amount"
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0e": {
+                  "(address owner,address token,uint256 minBalance)": {
+                    "intent": "Check",
+                    "fields": [
+                      {
+                        "path": "~.minBalance",
+                        "label": "Require Balance of",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.owner",
+                        "label": "Owner",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x10": {
+                  "(bytes actions,bytes[] params)": {
+                    "intent": "Swap",
+                    "fields": [
+                      {
+                        "path": "~.actions",
+                        "visible": "never",
+                        "format": "customEncoding",
+                        "params": {
+                          "type": "sequence",
+                          "element": {
+                            "type": "uint",
+                            "bytes": 1
+                          }
+                        }
+                      },
+                      {
+                        "path": "~.params.[]",
+                        "label": "Pool action",
+                        "switch": {
+                          "expression": {
+                            "path": "~.actions.[$index]"
+                          },
+                          "cases": {
+                            "0x06": {
+                              "(((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,bool zeroForOne,uint128 amountIn,uint128 amountOutMinimum,uint256 minHopPriceX36,bytes hookData) swap)": {
+                                "intent": "Swap",
+                                "fields": [
+                                  {
+                                    "path": "~.swap.amountIn",
+                                    "label": "Send",
+                                    "switch": {
+                                      "expression": {
+                                        "path": "~.swap.zeroForOne"
+                                      },
+                                      "cases": {
+                                        "0x01": {
+                                          "format": "tokenAmount",
+                                          "params": {
+                                            "tokenPath": "~.swap.poolKey.currency0",
+                                            "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                          }
+                                        },
+                                        "0x00": {
+                                          "format": "tokenAmount",
+                                          "params": {
+                                            "tokenPath": "~.swap.poolKey.currency1",
+                                            "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.amountOutMinimum",
+                                    "label": "Minimum Output",
+                                    "switch": {
+                                      "expression": {
+                                        "path": "~.swap.zeroForOne"
+                                      },
+                                      "cases": {
+                                        "0x01": {
+                                          "format": "tokenAmount",
+                                          "params": {
+                                            "tokenPath": "~.swap.poolKey.currency1",
+                                            "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                          }
+                                        },
+                                        "0x00": {
+                                          "format": "tokenAmount",
+                                          "params": {
+                                            "tokenPath": "~.swap.poolKey.currency0",
+                                            "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.poolKey.hooks",
+                                    "label": "Pool hook",
+                                    "format": "addressName",
+                                    "params": {
+                                      "types": [
+                                        "contract"
+                                      ]
+                                    },
+                                    "visible": {
+                                      "ifNotIn": [
+                                        "0x0000000000000000000000000000000000000000"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.hookData",
+                                    "label": "Hook data",
+                                    "format": "raw",
+                                    "visible": {
+                                      "ifNotIn": [
+                                        "0x"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "0x07": {
+                              "((address currencyIn,(address intermediateCurrency,uint24 fee,int24 tickSpacing,address hooks,bytes hookData)[] path,uint256[] minHopPriceX36,uint128 amountIn,uint128 amountOutMinimum) swap)": {
+                                "intent": "Swap",
+                                "fields": [
+                                  {
+                                    "path": "~.swap.amountIn",
+                                    "label": "Send",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                      "tokenPath": "~.swap.currencyIn",
+                                      "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.amountOutMinimum",
+                                    "label": "Minimum Output",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                      "tokenPath": "~.swap.path.[-1].intermediateCurrency",
+                                      "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.path.[].hooks",
+                                    "label": "Pool hook",
+                                    "format": "addressName",
+                                    "params": {
+                                      "types": [
+                                        "contract"
+                                      ]
+                                    },
+                                    "visible": {
+                                      "ifNotIn": [
+                                        "0x0000000000000000000000000000000000000000"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.path.[].hookData",
+                                    "label": "Hook data",
+                                    "format": "raw",
+                                    "visible": {
+                                      "ifNotIn": [
+                                        "0x"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "0x08": {
+                              "(((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,bool zeroForOne,uint128 amountOut,uint128 amountInMaximum,uint256 minHopPriceX36,bytes hookData) swap)": {
+                                "intent": "Swap",
+                                "fields": [
+                                  {
+                                    "path": "~.swap.amountInMaximum",
+                                    "label": "Maximum to Send",
+                                    "switch": {
+                                      "expression": {
+                                        "path": "~.swap.zeroForOne"
+                                      },
+                                      "cases": {
+                                        "0x01": {
+                                          "format": "tokenAmount",
+                                          "params": {
+                                            "tokenPath": "~.swap.poolKey.currency0",
+                                            "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                          }
+                                        },
+                                        "0x00": {
+                                          "format": "tokenAmount",
+                                          "params": {
+                                            "tokenPath": "~.swap.poolKey.currency1",
+                                            "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.amountOut",
+                                    "label": "Receive",
+                                    "switch": {
+                                      "expression": {
+                                        "path": "~.swap.zeroForOne"
+                                      },
+                                      "cases": {
+                                        "0x01": {
+                                          "format": "tokenAmount",
+                                          "params": {
+                                            "tokenPath": "~.swap.poolKey.currency1",
+                                            "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                          }
+                                        },
+                                        "0x00": {
+                                          "format": "tokenAmount",
+                                          "params": {
+                                            "tokenPath": "~.swap.poolKey.currency0",
+                                            "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.poolKey.hooks",
+                                    "label": "Pool hook",
+                                    "format": "addressName",
+                                    "params": {
+                                      "types": [
+                                        "contract"
+                                      ]
+                                    },
+                                    "visible": {
+                                      "ifNotIn": [
+                                        "0x0000000000000000000000000000000000000000"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.hookData",
+                                    "label": "Hook data",
+                                    "format": "raw",
+                                    "visible": {
+                                      "ifNotIn": [
+                                        "0x"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "0x09": {
+                              "((address currencyOut,(address intermediateCurrency,uint24 fee,int24 tickSpacing,address hooks,bytes hookData)[] path,uint256[] minHopPriceX36,uint128 amountOut,uint128 amountInMaximum) swap)": {
+                                "intent": "Swap",
+                                "fields": [
+                                  {
+                                    "path": "~.swap.amountInMaximum",
+                                    "label": "Maximum to Send",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                      "tokenPath": "~.swap.path.[0].intermediateCurrency",
+                                      "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.amountOut",
+                                    "label": "Receive",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                      "tokenPath": "~.swap.currencyOut",
+                                      "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.path.[].hooks",
+                                    "label": "Pool hook",
+                                    "format": "addressName",
+                                    "params": {
+                                      "types": [
+                                        "contract"
+                                      ]
+                                    },
+                                    "visible": {
+                                      "ifNotIn": [
+                                        "0x0000000000000000000000000000000000000000"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "path": "~.swap.path.[].hookData",
+                                    "label": "Hook data",
+                                    "format": "raw",
+                                    "visible": {
+                                      "ifNotIn": [
+                                        "0x"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "0x0b": {
+                              "(address currency,uint256 amount,bool payerIsUser)": {
+                                "intent": "Pay",
+                                "fields": [
+                                  {
+                                    "path": "~.amount",
+                                    "label": "Pay Pool",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                      "tokenPath": "~.currency",
+                                      "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                                      "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                                      "message": "Entire router balance"
+                                    },
+                                    "visible": {
+                                      "ifNotIn": [
+                                        0
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "path": "~.payerIsUser",
+                                    "label": "Paid by you",
+                                    "format": "raw",
+                                    "visible": {
+                                      "ifNotIn": [
+                                        true
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "0x0c": {
+                              "(address currency,uint256 maxAmount)": {
+                                "intent": "Pay",
+                                "fields": [
+                                  {
+                                    "path": "~.maxAmount",
+                                    "label": "Maximum to Send",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                      "tokenPath": "~.currency",
+                                      "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "0x0e": {
+                              "(address currency,address recipient,uint256 amount)": {
+                                "intent": "Receive",
+                                "fields": [
+                                  {
+                                    "path": "~.amount",
+                                    "label": "Take from Pool",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                      "tokenPath": "~.currency",
+                                      "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                    },
+                                    "visible": {
+                                      "ifNotIn": [
+                                        0
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "path": "~.recipient",
+                                    "label": "Recipient",
+                                    "format": "addressName",
+                                    "params": {
+                                      "types": [
+                                        "eoa",
+                                        "contract"
+                                      ],
+                                      "sources": [
+                                        "local",
+                                        "ens"
+                                      ],
+                                      "senderAddress": [
+                                        "0x0000000000000000000000000000000000000001"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "0x0f": {
+                              "(address currency,uint256 minAmount)": {
+                                "intent": "Receive",
+                                "fields": [
+                                  {
+                                    "path": "~.minAmount",
+                                    "label": "Minimum to Receive",
+                                    "format": "tokenAmount",
+                                    "params": {
+                                      "tokenPath": "~.currency",
+                                      "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "0x10": {
+                              "(address currency,address recipient,uint256 bips)": {
+                                "intent": "Fee",
+                                "fields": [
+                                  {
+                                    "path": "~.bips",
+                                    "label": "Fee",
+                                    "format": "unit",
+                                    "params": {
+                                      "base": "%",
+                                      "decimals": 2,
+                                      "prefix": false
+                                    }
+                                  },
+                                  {
+                                    "path": "~.currency",
+                                    "label": "Fee Token",
+                                    "format": "addressName",
+                                    "params": {
+                                      "types": [
+                                        "token"
+                                      ]
+                                    }
+                                  },
+                                  {
+                                    "path": "~.recipient",
+                                    "label": "Fee Recipient",
+                                    "format": "addressName",
+                                    "params": {
+                                      "types": [
+                                        "eoa",
+                                        "contract"
+                                      ],
+                                      "sources": [
+                                        "local",
+                                        "ens"
+                                      ],
+                                      "senderAddress": [
+                                        "0x0000000000000000000000000000000000000001"
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "$default": "reject"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x03": {
+                  "(((address token,uint160 amount,uint48 expiration,uint48 nonce)[] details,address spender,uint256 sigDeadline) permit,bytes signature)": {
+                    "intent": "Approve",
+                    "fields": [
+                      {
+                        "path": "~.permit.details.[].amount",
+                        "label": "Allow Spending",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.permit.details.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0xffffffffffffffffffffffffffffffffffffffff",
+                          "message": "Unlimited"
+                        }
+                      },
+                      {
+                        "path": "~.permit.spender",
+                        "label": "Spender",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.permit.details.[].expiration",
+                        "label": "Approval Expires",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0d": {
+                  "((address from,address to,uint160 amount,address token)[] transfers)": {
+                    "intent": "Send",
+                    "fields": [
+                      {
+                        "path": "~.transfers.[].amount",
+                        "label": "Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.transfers.[].token",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.transfers.[].to",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x13": {
+                  "((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,uint160 sqrtPriceX96)": {
+                    "intent": "Create pool",
+                    "fields": [
+                      {
+                        "path": "~.poolKey.currency0",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.currency1",
+                        "label": "Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.hooks",
+                        "label": "Pool hook",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "contract"
+                          ]
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            "0x0000000000000000000000000000000000000000"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.sqrtPriceX96",
+                        "label": "Starting Price (sqrt, Q96)",
+                        "format": "raw"
+                      }
+                    ]
+                  }
+                },
+                "0x21": {
+                  "(bytes commands,bytes[] inputs)": {
+                    "intent": "Sub-plan",
+                    "fields": [
+                      {
+                        "interaction": {
+                          "to": "@.to",
+                          "signature": "execute(bytes,bytes[])",
+                          "args": [
+                            {
+                              "path": "~.commands"
+                            },
+                            {
+                              "path": "~.inputs"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x07": {
+                  "(address token,address recipient,uint256 portion)": {
+                    "intent": "Fee",
+                    "fields": [
+                      {
+                        "path": "~.portion",
+                        "label": "Fee",
+                        "format": "unit",
+                        "params": {
+                          "base": "%",
+                          "decimals": 16,
+                          "prefix": false
+                        }
+                      },
+                      {
+                        "path": "~.token",
+                        "label": "Fee Token",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "token"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Fee Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "$default": "reject"
+              }
+            }
+          },
+          {
+            "path": "#.deadline",
+            "label": "Valid Until",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
             }
           }
         ]

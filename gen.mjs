@@ -148,6 +148,25 @@ function build(version) {
       { path: '~.actions', visible: 'never', format: 'customEncoding', params: { type: 'sequence', element: { type: 'uint', bytes: 1 } } },
       { path: '~.params.[]', label: 'Pool action', switch: { expression: { path: '~.actions.[$index]' }, cases: actions } },
     ] } },
+    '0x03': { '(((address token,uint160 amount,uint48 expiration,uint48 nonce)[] details,address spender,uint256 sigDeadline) permit,bytes signature)': {
+      intent: 'Approve', fields: [
+        amount('~.permit.details.[].amount', 'Allow Spending', '~.permit.details.[].token', { threshold: MAX_U160, message: 'Unlimited' }),
+        { path: '~.permit.spender', label: 'Spender', format: 'addressName', params: { types: ['eoa', 'contract'] } },
+        { path: '~.permit.details.[].expiration', label: 'Approval Expires', format: 'date', params: { encoding: 'timestamp' } },
+      ] } },
+    // every `from` must be the caller, or the router reverts (FromAddressIsNotOwner)
+    '0x0d': { '((address from,address to,uint160 amount,address token)[] transfers)': { intent: 'Send', fields: [
+      amount('~.transfers.[].amount', 'Send', '~.transfers.[].token'), recipient('~.transfers.[].to') ] } },
+    '0x13': { '((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,uint160 sqrtPriceX96)': { intent: 'Create pool', fields: [
+      { path: '~.poolKey.currency0', label: 'Token', format: 'addressName', params: { types: ['token'] } },
+      { path: '~.poolKey.currency1', label: 'Token', format: 'addressName', params: { types: ['token'] } },
+      hook('~.poolKey.hooks'),
+      { path: '~.sqrtPriceX96', label: 'Starting Price (sqrt, Q96)', format: 'raw' },
+    ] } },
+    // A sub-plan is the router calling its own execute(commands, inputs): the caller stays the signer.
+    '0x21': { '(bytes commands,bytes[] inputs)': { intent: 'Sub-plan', fields: [
+      { interaction: { to: '@.to', signature: 'execute(bytes,bytes[])', args: [{ path: '~.commands' }, { path: '~.inputs' }] } },
+    ] } },
     ...(v21 ? { '0x07': { '(address token,address recipient,uint256 portion)': { intent: 'Fee', fields: [
       percent('~.portion', 'Fee', 16), { path: '~.token', label: 'Fee Token', format: 'addressName', params: { types: ['token'] } }, recipient('~.recipient', 'Fee Recipient') ] } } } : {}),
     $default: 'reject',
@@ -166,6 +185,10 @@ function build(version) {
       'execute(bytes commands,bytes[] inputs,uint256 deadline)': { $id: 'execute with deadline', intent: 'Uniswap trade',
         fields: [native, ...fields, { path: '#.deadline', label: 'Valid Until', format: 'date', params: { encoding: 'timestamp' } }] },
       'execute(bytes commands,bytes[] inputs)': { $id: 'execute', intent: 'Uniswap trade', fields: [native, ...fields] },
+      // The route is also signed by a third party, for hooks that ask for it. That signature limits nothing for the user.
+      ...(v21 ? { 'executeSigned(bytes commands,bytes[] inputs,bytes32 intent,bytes32 data,bool verifySender,bytes32 nonce,bytes signature,uint256 deadline)': {
+        $id: 'execute signed', intent: 'Uniswap trade',
+        fields: [native, ...fields, { path: '#.deadline', label: 'Valid Until', format: 'date', params: { encoding: 'timestamp' } }] } } : {}),
     } },
   };
 }

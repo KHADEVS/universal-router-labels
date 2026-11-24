@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AbiCoder } from 'ethers';
+import { AbiCoder, id } from 'ethers';
 import { render, Refused } from './reader.mjs';
 
 const c = AbiCoder.defaultAbiCoder();
@@ -57,7 +57,7 @@ test('the revert-allowed flag does not hide the command', () => {
 });
 test('more commands than inputs is refused', () => refused(D20, tx('0x0004', [v3(path(DAI, 500, USDC))]), /as many tags/));
 test('commands without a label are refused', () => {
-  for (const k of ['0x03', '0x0d', '0x11', '0x12', '0x13', '0x14', '0x21', '0x3f']) refused(D20, tx(k, ['0x']), /no case/);
+  for (const k of ['0x0f', '0x11', '0x12', '0x14', '0x15', '0x20', '0x22', '0x3f']) refused(D20, tx(k, ['0x']), /no case/);
 });
 test('2.1: command 0x40 (Across deposit) is not read as a V3 swap', () => {
   const x = v3(path(DAI, 500, USDC));
@@ -92,4 +92,35 @@ test('v4: a 2.1 multi-hop swap read with the 2.0 tuple', () => {
   const wrong = shown(D20, t).slice(0, 2);
   assert.notDeepEqual(wrong, ['Send: 1 ETH', 'Minimum Output: 3900 USDC']);
   console.log('      read with the wrong tuple:', wrong.join(' | '));
+});
+
+test('a sub-plan is read like the plan itself, and hides nothing', () => {
+  const sub = c.encode(['bytes', 'bytes[]'], ['0x00', [v3(path(DAI, 500, USDC), { recipient: BAD })]]);
+  const l = shown(D20, tx('0x21', [sub]));
+  assert.ok(l.includes('Send: 1000 DAI') && l.some(isBad('Recipient')));
+  // allowed to revert, as the interface uses it for partial fills
+  assert.ok(shown(D20, tx('0xa1', [sub])).includes('Send: 1000 DAI'));
+});
+test('sub-plans nested too deep are refused', () => {
+  let sub = c.encode(['bytes', 'bytes[]'], ['0x00', [v3(path(DAI, 500, USDC))]]);
+  for (let i = 0; i < 5; i++) sub = c.encode(['bytes', 'bytes[]'], ['0x21', [sub]]);
+  refused(D20, tx('0x21', [sub]), /nested too deep/);
+});
+test('a batch permit shows every token and the spender', () => {
+  const p = c.encode(['((address,uint160,uint48,uint48)[],address,uint256)', 'bytes'], [[[[USDC, (1n << 160n) - 1n, 1795600000, 0], [DAI, 5n * 10n ** 18n, 1795600000, 0]], BAD, 0], '0x']);
+  const l = shown(D20, tx('0x03', [p]));
+  assert.ok(l.includes('Allow Spending: Unlimited USDC') && l.includes('Allow Spending: 5 DAI') && l.some(isBad('Spender')));
+});
+test('a batch transfer shows every recipient', () => {
+  const p = c.encode(['(address,address,uint160,address)[]'], [[[ME, BAD, 7n * 10n ** 6n, USDC], [ME, FLAG_ME, 10n ** 18n, DAI]]]);
+  const l = shown(D20, tx('0x0d', [p]));
+  assert.ok(l.includes('Send: 7 USDC') && l.includes('Send: 1 DAI') && l.some(isBad('Recipient')));
+});
+test('2.1: a signed route shows the same plan', () => {
+  const v = c.encode(['address', 'uint256', 'uint256', 'bytes', 'bool', 'uint256[]'], [BAD, 1000n * 10n ** 18n, 990n * 10n ** 6n, path(DAI, 500, USDC), true, []]);
+  const input = '0x' + 'XXXXXXXX' + strip(c.encode(['bytes', 'bytes[]', 'bytes32', 'bytes32', 'bool', 'bytes32', 'bytes', 'uint256'], ['0x00', [v], '0x' + '11'.repeat(32), '0x' + '22'.repeat(32), true, '0x' + '33'.repeat(32), '0x' + '44'.repeat(65), 1795600000n]));
+  const sel = id('executeSigned(bytes,bytes[],bytes32,bytes32,bool,bytes32,bytes,uint256)').slice(2, 10);
+  const l = shown(D21, { from: ME, to: R21, value: 0n, input: input.replace('XXXXXXXX', sel) });
+  assert.ok(l.includes('Send: 1000 DAI') && l.some(isBad('Recipient')) && l.at(-1).startsWith('Valid Until'));
+  refused(D20, { from: ME, to: R20, value: 0n, input: input.replace('XXXXXXXX', sel) }, /unknown selector/);
 });
