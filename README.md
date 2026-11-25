@@ -68,6 +68,8 @@ Refused: calls to the v3 and v4 position managers (their address differs per cha
 
 A packed v3 path decoded as `token | (fee | token)*` refuses the appended address of [registry#3136](https://github.com/ethereum/clear-signing-erc7730-registry/issues/3136).
 
+The wording of every label, command by command, is in [LABELS.md](LABELS.md).
+
 ## A real example
 
 [`0x39f46d43…`](https://etherscan.io/tx/0x39f46d432633bcb3d2c765269bebec88c660c2d6c8002c74f715971135d33980), router 2.1.2:
@@ -92,7 +94,7 @@ node controls.mjs survey/sample.json survey/limited.json   # reads receipts from
 node registry-tests.mjs survey/sample.json survey/limited.json <registry>/specs/erc7730-tests-v2.schema.json
 ```
 
-`gen.mjs` writes the descriptors, `reader.mjs` is the reader (about 150 lines, it refuses instead of guessing), `survey/` holds the sample and how it was taken.
+`gen.mjs` writes the descriptors, `labels.mjs` the table of labels, `reader.mjs` is the reader (about 150 lines, it refuses instead of guessing), `survey/` holds the sample and how it was taken.
 
 ## Not done
 
