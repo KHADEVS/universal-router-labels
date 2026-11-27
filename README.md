@@ -4,6 +4,24 @@ What a wallet should show when someone signs a Universal Router call, written as
 
 This is a proposal, not a registry entry: the draft is not merged, and no wallet supports it yet.
 
+## Why
+
+Most Uniswap swaps reach the chain as one call to a Universal Router: `execute(commands, inputs, deadline)`. The swap, its recipient, its minimum and its fees are packed inside `commands` and `inputs`, which are not plain ABI data. A wallet that reads ERC-7730 descriptors can show the deadline and the native amount, and nothing else. On a hardware wallet that means signing the swap blind, unless the vendor wrote a decoder of its own.
+
+The Ethereum clear-signing working group is extending ERC-7730 for calls like this one. Its [notes of 11 November 2026](https://github.com/ethereum/clear-signing-erc7730-registry/issues/3132) say that the Universal Routers can't be described until that extension merges, and that "the Uniswap labels still need an author: what the user actually reads". This repository is a first version of those labels, [offered to the group](https://github.com/ethereum/clear-signing-erc7730-registry/issues/3286#issuecomment-7184389602) for its call of 9 December.
+
+With them, a swap reads like this ([`0x39f46d43…`](https://etherscan.io/tx/0x39f46d432633bcb3d2c765269bebec88c660c2d6c8002c74f715971135d33980), router 2.1.2):
+
+```
+Uniswap trade
+   Native Amount: 0.1833 ETH
+   [Wrap]     Wrap: 0.1833 ETH · Recipient: Uniswap router
+   [Swap]     Send: 0.1833 WETH · Minimum Output: 0 USDC · Recipient: Uniswap router · Paid by you: false
+   [Fee]      Fee: 0.25% · Fee Token: USDC · Fee Recipient: 0xcD6b…9799
+   [Collect]  Collect at Least: 303.471573 USDC · Recipient: You
+   Valid Until: 2026-11-24 19:38 UTC
+```
+
 ## What people sign
 
 300 blocks, every 24th block of 2026-11-23 20:32 to 2026-11-24 20:30 UTC: 84,128 transactions, of which 1,994 (2.4%) call a Universal Router directly.
@@ -15,6 +33,7 @@ This is a proposal, not a registry entry: the draft is not merged, and no wallet
 | contain a v2 swap | 3.1% | 9.1% |
 | sent to router 2.0 / 2.1.1 / 2.1.2 | 78 / 1 / 21% | 52 / 3 / 45% |
 | covered by the two commands of the draft's example | 0.7% | 1.9% |
+| covered by the eight commands of its fuller rewrite ([forshtat/ERCs#14](https://github.com/forshtat/ERCs/pull/14)) | 6.0% | 17.5% |
 | covered here | 100% | 100% |
 
 1,313 of the 1,994 set no limit at all on what they receive. That suggests automated senders, so the second column is the one to read for people. One day of Mainnet only, direct calls only.
@@ -69,20 +88,6 @@ Refused: calls to the v3 and v4 position managers (their address differs per cha
 A packed v3 path decoded as `token | (fee | token)*` refuses the appended address of [registry#3136](https://github.com/ethereum/clear-signing-erc7730-registry/issues/3136).
 
 The wording of every label, command by command, is in [LABELS.md](LABELS.md).
-
-## A real example
-
-[`0x39f46d43…`](https://etherscan.io/tx/0x39f46d432633bcb3d2c765269bebec88c660c2d6c8002c74f715971135d33980), router 2.1.2:
-
-```
-Uniswap trade
-   Native Amount: 0.1833 ETH
-   [Wrap]     Wrap: 0.1833 ETH · Recipient: Uniswap router
-   [Swap]     Send: 0.1833 WETH · Minimum Output: 0 USDC · Recipient: Uniswap router · Paid by you: false
-   [Fee]      Fee: 0.25% · Fee Token: USDC · Fee Recipient: 0xcD6b…9799
-   [Collect]  Collect at Least: 303.471573 USDC · Recipient: You
-   Valid Until: 2026-11-24 19:38 UTC
-```
 
 ## Run
 

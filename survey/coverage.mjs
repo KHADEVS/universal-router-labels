@@ -32,6 +32,8 @@ for (const [name, set] of [['all', all], ['with a limit', all.filter((t) => t.li
   console.log(' V4', p(has([0x10])), '| V3', p(has([0, 1])), '| V2', p(has([8, 9])), '| Permit2 permit', p(has([0x0a])));
   console.log(' routers', ['V2', 'V2_1_1', 'V2_1_2'].map((v) => v + ' ' + p(set.filter((t) => t.v === v).length)).join(' | '));
   console.log(' expressible with commands 0x00 and 0x04 only', p(set.filter((t) => t.cmds.every((x) => [0, 4].includes(x & 0x3f))).length));
+  // The eight commands of the example as rewritten in forshtat/ERCs#14.
+  console.log(' expressible with its eight commands', p(set.filter((t) => t.cmds.every((x) => [0, 1, 4, 6, 8, 0x0a, 0x0b, 0x0c].includes(x & 0x3f))).length));
   const multi = set.filter((t) => t.acts.some((a) => a === 7 || a === 9)); console.log(' v4 multi-hop', p(multi.length));
   console.log(' more than one swap', p(set.filter((t) => t.swaps > 1).length), '| fee portion', p(set.filter((t) => t.cmds.some((x) => [6, 7].includes(x & 0x7f)) || t.acts.includes(0x10)).length));
 }
