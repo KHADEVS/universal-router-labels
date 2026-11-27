@@ -43,6 +43,17 @@ for (const [code, c] of Object.entries(cases)) {
 }
 out.push('', 'Any other command: the transaction is refused, not shown in part.', '', '## Actions inside `V4_SWAP`', '', '| Action | Group | Fields |', '|---|---|---|');
 for (const [code, c] of Object.entries(v4)) if (code !== '$default') out.push(row(code, ACTIONS[code], Object.values(c)[0]));
+out.push('', 'Any other action: refused.', '');
+
+// The v4 position manager has a descriptor of its own, used for command 0x14 and for direct calls.
+const pm = JSON.parse(fs.readFileSync('descriptors/v4-position-manager.json'));
+const PM_ACTIONS = { '0x00': 'INCREASE_LIQUIDITY', '0x01': 'DECREASE_LIQUIDITY', '0x02': 'MINT_POSITION', '0x03': 'BURN_POSITION', '0x04': 'INCREASE_LIQUIDITY_FROM_DELTAS', '0x05': 'MINT_POSITION_FROM_DELTAS', '0x0b': 'SETTLE', '0x0d': 'SETTLE_PAIR', '0x0e': 'TAKE', '0x11': 'TAKE_PAIR', '0x12': 'CLOSE_CURRENCY', '0x13': 'CLEAR_OR_TAKE', '0x14': 'SWEEP', '0x15': 'WRAP', '0x16': 'UNWRAP' };
+const pmTop = Object.values(pm.display.formats)[0];
+out.push('## The v4 position manager', '',
+  'Generated from `descriptors/v4-position-manager.json`, for `modifyLiquidities`: called directly, or by the router for command `0x14`.',
+  `A call starts with **${pmTop.intent}**, then one group per action, and **Valid Until**. Here \`0x…01\` is the caller, which is the router when the call comes through it.`, '',
+  '| Action | Group | Fields |', '|---|---|---|');
+for (const [code, c] of Object.entries(pmTop.fields.find((f) => f.switch).switch.cases)) if (code !== '$default') out.push(row(code, PM_ACTIONS[code], Object.values(c)[0]));
 out.push('', 'Any other action: refused.', '',
   '## Choices worth a second opinion', '',
   '- **Minimum Output** on a swap, **Minimum to Receive** only on a step that pays the user. A swap can pay the router first, with a fee taken after it.',
@@ -51,5 +62,7 @@ out.push('', 'Any other action: refused.', '',
   '- An amount of 0 in `SETTLE` and `TAKE` means everything that is open. It is hidden, since "0 USDC" reads as nothing.',
   '- A hook and its data are shown whenever the pool has one. The user cannot judge a hook, but should know there is one.',
   '- In an Across deposit, **Recipient on Destination** and **Refund Address** are shown as they are. The router does not map `0x…01` and `0x…02` there, so they are not "you" and "the router".',
-  '- An Across deposit that names no output token is refused: the pool would pick one, and the wallet could not say which.', '');
+  '- An Across deposit that names no output token is refused: the pool would pick one, and the wallet could not say which.',
+  '- In the position manager, actions on an existing position name no pool, so their amounts are raw. A token named without an amount is a ticker, which the format cannot give for the native currency.',
+  '- **Forfeit if at Most** for `CLEAR_OR_TAKE`: what the pool owes is given up when it is this amount or less.', '');
 fs.writeFileSync('LABELS.md', out.join('\n'));

@@ -237,7 +237,68 @@ export function build(version, chainId = 1) {
   };
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// The v4 position manager: modifyLiquidities(unlockData, deadline), called directly or through the router's command
+// 0x14. `unlockData` is bytes that hold abi.encode(bytes actions, bytes[] params), which takes the `abi` node of the
+// fuller draft (forshtat/ERCs#14). Actions on an existing position name no pool, so their amounts stay raw, as in
+// the registry's descriptor for the v3 position manager. In this contract 0x…01 is the caller and 0x…02 the
+// position manager itself.
+export function buildPositions(chainId = 1) {
+  const raw = (path, label) => ({ path, label, format: 'raw' });
+  const ticker = (path, label = 'Token') => ({ path, label, format: 'tokenTicker' });
+  const position = { path: '~.tokenId', label: 'Position', format: 'nftName', params: { collectionPath: '@.to' } };
+  const payer = { path: '~.payerIsUser', label: 'Paid by Caller', format: 'raw', visible: { ifNotIn: [true] } };
+  const range = [raw('~.tickLower', 'Lower Tick'), raw('~.tickUpper', 'Upper Tick')];
+  const mint = (liquidity) => ({ intent: 'Create position', fields: [
+    amount('~.amount0Max', 'Maximum to Send', '~.poolKey.currency0'), amount('~.amount1Max', 'Maximum to Send', '~.poolKey.currency1'),
+    ...(liquidity ? [raw('~.liquidity', 'Liquidity')] : []), ...range,
+    recipient('~.owner', 'Position Owner'), hook('~.poolKey.hooks'), hookData('~.hookData') ] });
+  const actions = {
+    '0x00': { '(uint256 tokenId,uint256 liquidity,uint128 amount0Max,uint128 amount1Max,bytes hookData)': { intent: 'Add liquidity', fields: [
+      position, raw('~.liquidity', 'Liquidity to Add'), raw('~.amount0Max', 'Max Token0 (raw)'), raw('~.amount1Max', 'Max Token1 (raw)'), hookData('~.hookData') ] } },
+    '0x01': { '(uint256 tokenId,uint256 liquidity,uint128 amount0Min,uint128 amount1Min,bytes hookData)': { intent: 'Remove liquidity', fields: [
+      position, raw('~.liquidity', 'Liquidity to Remove'), raw('~.amount0Min', 'Min Token0 (raw)'), raw('~.amount1Min', 'Min Token1 (raw)'), hookData('~.hookData') ] } },
+    '0x02': { [`(${POOL},int24 tickLower,int24 tickUpper,uint256 liquidity,uint128 amount0Max,uint128 amount1Max,address owner,bytes hookData)`]: mint(true) },
+    '0x03': { '(uint256 tokenId,uint128 amount0Min,uint128 amount1Min,bytes hookData)': { intent: 'Close position', fields: [
+      position, raw('~.amount0Min', 'Min Token0 (raw)'), raw('~.amount1Min', 'Min Token1 (raw)'), hookData('~.hookData') ] } },
+    '0x04': { '(uint256 tokenId,uint128 amount0Max,uint128 amount1Max,bytes hookData)': { intent: 'Add liquidity', fields: [
+      position, raw('~.amount0Max', 'Max Token0 (raw)'), raw('~.amount1Max', 'Max Token1 (raw)'), hookData('~.hookData') ] } },
+    '0x05': { [`(${POOL},int24 tickLower,int24 tickUpper,uint128 amount0Max,uint128 amount1Max,address owner,bytes hookData)`]: mint(false) },
+    // 0 is "what is owed", hidden as in the router: the token is named either way
+    '0x0b': { '(address currency,uint256 amount,bool payerIsUser)': { intent: 'Pay', fields: [
+      ticker('~.currency'), { ...amount('~.amount', 'Pay Pool', '~.currency', { threshold: WHOLE_BALANCE, message: 'Entire balance' }), visible: { ifNotIn: [0] } }, payer ] } },
+    '0x0d': { '(address currency0,address currency1)': { intent: 'Pay', fields: [ticker('~.currency0'), ticker('~.currency1')] } },
+    '0x0e': { '(address currency,address recipient,uint256 amount)': { intent: 'Receive', fields: [
+      ticker('~.currency'), { ...amount('~.amount', 'Take from Pool', '~.currency'), visible: { ifNotIn: [0] } }, recipient() ] } },
+    '0x11': { '(address currency0,address currency1,address recipient)': { intent: 'Receive', fields: [ticker('~.currency0'), ticker('~.currency1'), recipient()] } },
+    '0x12': { '(address currency)': { intent: 'Settle', fields: [ticker('~.currency')] } },
+    // what is owed is given up when it is this amount or less
+    '0x13': { '(address currency,uint256 amountMax)': { intent: 'Receive', fields: [amount('~.amountMax', 'Forfeit if at Most', '~.currency')] } },
+    '0x14': { '(address currency,address to)': { intent: 'Collect', fields: [ticker('~.currency', 'Collect All'), recipient('~.to')] } },
+    '0x15': { '(uint256 amount)': { intent: 'Wrap', fields: [
+      { path: '~.amount', label: 'Wrap', format: 'tokenAmount', params: { token: NATIVE, nativeCurrencyAddress: NATIVE, threshold: WHOLE_BALANCE, message: 'Entire balance' }, visible: { ifNotIn: [0] } } ] } },
+    '0x16': { '(uint256 amount)': { intent: 'Unwrap', fields: [
+      { path: '~.amount', label: 'Unwrap', format: 'tokenAmount', params: { token: NATIVE, nativeCurrencyAddress: NATIVE, threshold: WHOLE_BALANCE, message: 'Entire balance' }, visible: { ifNotIn: [0] } } ] } },
+    $default: 'reject',
+  };
+  return {
+    $schema: 'https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json',
+    context: { $id: 'Uniswap v4 Position Manager', contract: { deployments: [{ chainId, address: POSITION_MANAGERS[chainId].v4 }] } },
+    metadata: { owner: 'Uniswap Labs', contractName: 'PositionManager', info: { url: 'https://uniswap.org/' } },
+    display: { formats: {
+      'modifyLiquidities(bytes unlockData,uint256 deadline)': { $id: 'modify liquidities', intent: 'Manage liquidity', fields: [
+        { path: '#.unlockData', visible: 'never', format: 'customEncoding', params: { type: 'abi', entries: [
+          { name: 'actions', schema: { type: 'bytes', format: 'customEncoding', params: { type: 'sequence', element: { type: 'uint', bytes: 1 } } } },
+          { name: 'params', schema: { type: 'array', element: { type: 'bytes' } } },
+        ] } },
+        { path: '#.unlockData.params.[]', label: 'Step', switch: { expression: { path: '#.unlockData.actions.[$index]' }, cases: actions } },
+        { path: '#.deadline', label: 'Valid Until', format: 'date', params: { encoding: 'timestamp' } },
+      ] },
+    } },
+  };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   fs.mkdirSync('descriptors', { recursive: true });
   for (const v of ['2.0', '2.1']) fs.writeFileSync(`descriptors/universal-router-${v}.json`, JSON.stringify(build(v), null, 2) + '\n');
+  fs.writeFileSync('descriptors/v4-position-manager.json', JSON.stringify(buildPositions(), null, 2) + '\n');
 }

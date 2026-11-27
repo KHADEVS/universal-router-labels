@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { render, Refused } from './reader.mjs';
-import { build, POSITION_MANAGERS } from './gen.mjs';
+import { build, buildPositions, POSITION_MANAGERS } from './gen.mjs';
 // each chain has its own position managers, so its own descriptors
 const IDS = { arbitrum: 42161, base: 8453, bsc: 56, optimism: 10, polygon: 137, unichain: 130 };
 const v3Positions = JSON.parse(fs.readFileSync('vendor/registry/calldata-UniswapV3NonfungiblePositionManager.json'));
@@ -13,8 +13,8 @@ for (const f of fs.readdirSync('survey/chains').sort()) {
   const s = JSON.parse(zlib.gunzipSync(fs.readFileSync('survey/chains/' + f)));
   const chainId = IDS[s.chain]; if (!chainId) throw new Error('unknown chain ' + s.chain);
   const desc = { V2: build('2.0', chainId), V2_1_1: build('2.1', chainId), V2_1_2: build('2.1', chainId), V2_2_0: build('2.1', chainId) };
-  const env = { native: { symbol: 'native', decimals: 18 }, token: () => null,
-    descriptor: (a) => (a === POSITION_MANAGERS[chainId].v3.toLowerCase() ? v3Positions : undefined) };
+  const called = { [POSITION_MANAGERS[chainId].v3.toLowerCase()]: v3Positions, [POSITION_MANAGERS[chainId].v4.toLowerCase()]: buildPositions(chainId) };
+  const env = { native: { symbol: 'native', decimals: 18 }, token: () => null, descriptor: (a) => called[a] };
   let ok = 0, old = 0, v20 = 0, v21 = 0; const bad = {};
   for (const t of s.txs) {
     const d = desc[t.v]; if (!d) { old++; continue; }
@@ -24,7 +24,7 @@ for (const f of fs.readdirSync('survey/chains').sort()) {
   }
   const n = v20 + v21;
   console.log(`| ${s.chain} | ${s.blocks.length} | ${s.blocks.reduce((a, b) => a + b.txs, 0)} | ${s.txs.length} | ${v20} / ${v21} | ${old} | ${ok} of ${n} |`);
-  // a call to the v4 position manager has no descriptor yet and is refused, anything else is a failure
-  for (const [k, v] of Object.entries(bad)) { if (!/no descriptor for the contract called/.test(k)) failed = true; console.log('   refused:', v.length, k, v.slice(0, 2).join(' ')); }
+  // every call to a router of these generations has to render
+  for (const [k, v] of Object.entries(bad)) { failed = true; console.log('   refused:', v.length, k, v.slice(0, 2).join(' ')); }
 }
 process.exit(failed ? 1 : 0);

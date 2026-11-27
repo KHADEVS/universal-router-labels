@@ -42,33 +42,33 @@ Uniswap trade
 
 ### Other chains
 
-The same two files, unchanged, on calls sampled over the same 24 hours:
+The same descriptors, built with each chain's own position managers, on calls sampled over the same 24 hours:
 
 | chain | blocks | router calls | on 2.0 / 2.1+ | rendered |
 |---|---|---|---|---|
 | Unichain | 5,000 | 963 | 951 / 12 | 963 |
-| Base | 3,000 | 456 | 423 / 33 | 455 |
+| Base | 3,000 | 456 | 423 / 33 | 456 |
 | BNB Chain | 1,500 | 262 | 223 / 39 | 262 |
 | Arbitrum | 12,000 | 68 | 24 / 44 | 68 |
 | Polygon | 1,488 | 55 | 10 / 45 | 55 |
 | Optimism | 2,000 | 5 | 2 / 3 | 5 |
 
-1,808 of 1,809. The one refused is a call to the v4 position manager (command `0x14`). 22 more calls went to routers older than 2.0 (17 on Polygon, 5 on BNB Chain), which have another command table and no descriptor here. Block counts differ because block times do; these samples are small.
+1,809 of 1,809. One of them creates a v4 position through the router (command `0x14`). 22 more calls went to routers older than 2.0 (17 on Polygon, 5 on BNB Chain), which have another command table and no descriptor here. Block counts differ because block times do; these samples are small.
 
 ### Commands
 
-Described: the two v2 and two v3 swaps, `V4_SWAP` with its 9 actions, Permit2 permits and transfers (single and batch), `SWEEP`, `TRANSFER`, both fee portions, wrap and unwrap, the balance check, pool creation, sub-plans, and on 2.1+ `executeSigned` and the Across deposit. The calls the router forwards to the v3 position manager (permit, then decreaseLiquidity, collect and burn) are shown with the registry's own descriptor for that contract.
+Described: the two v2 and two v3 swaps, `V4_SWAP` with its 9 actions, Permit2 permits and transfers (single and batch), `SWEEP`, `TRANSFER`, both fee portions, wrap and unwrap, the balance check, pool creation, sub-plans, and on 2.1+ `executeSigned` and the Across deposit. The calls the router forwards to the position managers are shown with those contracts' own descriptors: the registry's for v3 (permit, then decreaseLiquidity, collect and burn), and `descriptors/v4-position-manager.json` for v4.
 
-Refused: calls to the v4 position manager, until that contract has a descriptor. Its `unlockData` is bytes that hold an ABI-encoded tuple, which the draft cannot describe without the `abi` node of [forshtat/ERCs#14](https://github.com/forshtat/ERCs/pull/14).
+The v4 position manager needs more than the draft: `unlockData` is bytes that hold an ABI-encoded tuple, which takes the `abi` node of [forshtat/ERCs#14](https://github.com/forshtat/ERCs/pull/14). Its descriptor is written in that fuller syntax, and covers every action of `modifyLiquidities`, for direct calls too.
 
 ## Checks
 
-- Both descriptors are valid against the draft's schema, with its ten examples as a control.
+- The two router descriptors are valid against the draft's schema, with its ten examples as a control. The position manager's is valid against the schema of the fuller draft.
 - The 1,994 transactions render. The survey was decoded a second time with ethers.
 - **Labels against receipts.** For the 681 transactions with a limit, 619 succeeded. In plans with a single swap, the token labelled as sent left the signer (259 of 259, never more than labelled) and the token labelled as received reached them (389 of 389, never less than labelled). ERC-20 legs only: native amounts are not in the logs. Three descriptors broken on purpose give 423, 56 and 9 differences.
-- 34 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan, a bridge deposit whose recipient is `0x…01`, a v3 position permit for someone other than the router.
+- 41 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan, a bridge deposit whose recipient is `0x…01`, a v3 position permit for someone other than the router, a v4 position whose owner is `0x…01`.
 - `registry-tests/` holds 24 of the real transactions in the test format of the ERC-7730 registry (raw transaction, token data, expected display), valid against its schema, for the day a runner supports the extension.
-- `cases/` holds the calls built to mislead as data: 45 cases, 15 of which must be refused, each with the call and what a careful wallet shows. With the 24 real transactions that is 69 cases a reader in any language can run ([format](cases/README.md)).
+- `cases/` holds the calls built to mislead as data: 53 cases, 17 of which must be refused, each with the call and what a careful wallet shows. With the 24 real transactions that is 77 cases a reader in any language can run ([format](cases/README.md)).
 
 ## What we learned
 
@@ -86,7 +86,9 @@ Refused: calls to the v4 position manager, until that contract has a descriptor.
 
 **7. Points the draft leaves open:** what `$index` refers to inside a nested iteration (v4 actions inside commands), `.[-1]` on a decoded sequence, and what a wallet does when `commands` and `inputs` have different lengths (the router reverts, we refuse).
 
-**8. A call the router forwards needs a file per chain, and a careful reader.** Commands `0x11`, `0x12` and `0x14` carry a whole call to a position manager, which ERC-7730's `calldata` format covers. Its `callee` is a constant, and the position managers differ from chain to chain, so the descriptors are built per chain (`build(version, chainId)` in `gen.mjs`; the two files here are Mainnet's). Inside that call the sender is the router: a reader that prints the signer as "you" has to keep that meaning when it goes one call down. The router checks that `0x11` is a permit, not who the permit is for, so the operator is what to read there.
+**8. A call the router forwards needs a file per chain, and a careful reader.** Commands `0x11`, `0x12` and `0x14` carry a whole call to a position manager, which ERC-7730's `calldata` format covers. Its `callee` is a constant, and the position managers differ from chain to chain, so the descriptors are built per chain (`build(version, chainId)` in `gen.mjs`; the two files here are Mainnet's). Inside that call the sender is the router: a reader that prints the signer as "you" has to keep that meaning when it goes one call down. The router checks that `0x11` is a permit, not who the permit is for, so the operator is what to read there. And in the v4 position manager `0x…01` is the caller: through the router, a position whose owner is `0x…01` belongs to the router, not to the signer.
+
+**9. A token named without an amount cannot be the native currency.** `tokenAmount` has `nativeCurrencyAddress`; `tokenTicker` and `addressName` do not. In the position manager, `SETTLE_PAIR`, `TAKE_PAIR`, `CLOSE_CURRENCY` and `SWEEP` name a currency and no amount, so ETH is shown there as the zero address.
 
 A packed v3 path decoded as `token | (fee | token)*` refuses the appended address of [registry#3136](https://github.com/ethereum/clear-signing-erc7730-registry/issues/3136).
 
@@ -97,7 +99,7 @@ The wording of every label, command by command, is in [LABELS.md](LABELS.md).
 ```
 npm ci
 npm test                                  # descriptors, traps, the cases as data, the whole sample
-node schema-check.mjs <ERCs>/assets/erc-0000
+node schema-check.mjs <ERCs>/assets/erc-0000 [<the same folder of forshtat/ERCs#14>]
 node controls.mjs survey/sample.json survey/limited.json   # reads receipts from a public node
 node registry-tests.mjs survey/sample.json survey/limited.json <registry>/specs/erc7730-tests-v2.schema.json
 ```
@@ -106,6 +108,6 @@ node registry-tests.mjs survey/sample.json survey/limited.json <registry>/specs/
 
 ## Not done
 
-A descriptor for the v4 position manager, routers older than 2.0, receipts on other chains, hardware screens, translation. The reader is for checking the labels, not for a wallet.
+Routers older than 2.0, receipts on other chains, hardware screens, translation. The reader is for checking the labels, not for a wallet.
 
 MIT licence.

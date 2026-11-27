@@ -49,6 +49,31 @@ Any other command: the transaction is refused, not shown in part.
 
 Any other action: refused.
 
+## The v4 position manager
+
+Generated from `descriptors/v4-position-manager.json`, for `modifyLiquidities`: called directly, or by the router for command `0x14`.
+A call starts with **Manage liquidity**, then one group per action, and **Valid Until**. Here `0x…01` is the caller, which is the router when the call comes through it.
+
+| Action | Group | Fields |
+|---|---|---|
+| `0x00` INCREASE_LIQUIDITY | Add liquidity | **Position** · **Liquidity to Add** · **Max Token0 (raw)** · **Max Token1 (raw)** · **Hook data** (hidden when empty) |
+| `0x01` DECREASE_LIQUIDITY | Remove liquidity | **Position** · **Liquidity to Remove** · **Min Token0 (raw)** · **Min Token1 (raw)** · **Hook data** (hidden when empty) |
+| `0x02` MINT_POSITION | Create position | **Maximum to Send** · **Maximum to Send** · **Liquidity** · **Lower Tick** · **Upper Tick** · **Position Owner** (`0x…01` shown as the sender) · **Pool hook** (hidden when zero) · **Hook data** (hidden when empty) |
+| `0x03` BURN_POSITION | Close position | **Position** · **Min Token0 (raw)** · **Min Token1 (raw)** · **Hook data** (hidden when empty) |
+| `0x04` INCREASE_LIQUIDITY_FROM_DELTAS | Add liquidity | **Position** · **Max Token0 (raw)** · **Max Token1 (raw)** · **Hook data** (hidden when empty) |
+| `0x05` MINT_POSITION_FROM_DELTAS | Create position | **Maximum to Send** · **Maximum to Send** · **Lower Tick** · **Upper Tick** · **Position Owner** (`0x…01` shown as the sender) · **Pool hook** (hidden when zero) · **Hook data** (hidden when empty) |
+| `0x0b` SETTLE | Pay | **Token** · **Pay Pool** ("Entire balance" for 2^255, hidden when 0) · **Paid by Caller** (hidden when true) |
+| `0x0d` SETTLE_PAIR | Pay | **Token** · **Token** |
+| `0x0e` TAKE | Receive | **Token** · **Take from Pool** (hidden when 0) · **Recipient** (`0x…01` shown as the sender) |
+| `0x11` TAKE_PAIR | Receive | **Token** · **Token** · **Recipient** (`0x…01` shown as the sender) |
+| `0x12` CLOSE_CURRENCY | Settle | **Token** |
+| `0x13` CLEAR_OR_TAKE | Receive | **Forfeit if at Most** |
+| `0x14` SWEEP | Collect | **Collect All** · **Recipient** (`0x…01` shown as the sender) |
+| `0x15` WRAP | Wrap | **Wrap** ("Entire balance" for 2^255, hidden when 0) |
+| `0x16` UNWRAP | Unwrap | **Unwrap** ("Entire balance" for 2^255, hidden when 0) |
+
+Any other action: refused.
+
 ## Choices worth a second opinion
 
 - **Minimum Output** on a swap, **Minimum to Receive** only on a step that pays the user. A swap can pay the router first, with a fee taken after it.
@@ -58,3 +83,5 @@ Any other action: refused.
 - A hook and its data are shown whenever the pool has one. The user cannot judge a hook, but should know there is one.
 - In an Across deposit, **Recipient on Destination** and **Refund Address** are shown as they are. The router does not map `0x…01` and `0x…02` there, so they are not "you" and "the router".
 - An Across deposit that names no output token is refused: the pool would pick one, and the wallet could not say which.
+- In the position manager, actions on an existing position name no pool, so their amounts are raw. A token named without an amount is a ticker, which the format cannot give for the native currency.
+- **Forfeit if at Most** for `CLEAR_OR_TAKE`: what the pool owes is given up when it is this amount or less.

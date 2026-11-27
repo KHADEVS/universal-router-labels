@@ -4,7 +4,7 @@ Calls to the Universal Router with what a careful wallet shows for each, or the 
 
 | File | Cases | What they are |
 |---|---|---|
-| `built-to-mislead.json` | 45 | Calls built by hand to mislead: output sent elsewhere, a fee taken after the swap, an address appended to a path, a bridge recipient that looks like a flag, a position permit for a stranger. 15 of them must be refused. |
+| `built-to-mislead.json` | 53 | Calls built by hand to mislead: output sent elsewhere, a fee taken after the swap, an address appended to a path, a bridge recipient that looks like a flag, a position permit for a stranger, a new position owned by the router. 17 of them must be refused. |
 | `../registry-tests/*.tests.json` | 24 | Real Mainnet transactions, in the test format of the ERC-7730 registry. |
 
 ## Format of `built-to-mislead.json`

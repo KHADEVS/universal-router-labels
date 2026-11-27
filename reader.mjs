@@ -26,8 +26,32 @@ function layout(node, cur) {
     case 'address': { const b = take(node.bytes); if (node.bytes === 32 && b.subarray(0, 12).some((x) => x)) refuse('dirty address'); return hex(b.subarray(-20)); }
     case 'sequence': { const out = []; while (cur.pos < cur.buf.length) out.push(layout(node.element, cur)); return out; }
     case 'object': return Object.fromEntries(node.entries.map((e) => [e.name, layout(e.schema, cur)]));
+    // what abi.encode produces, without a selector: the rest of the buffer (forshtat/ERCs#14)
+    case 'abi': {
+      const rest = hex(cur.buf.subarray(cur.pos)); cur.pos = cur.buf.length;
+      let values;
+      try { values = coder.decode(node.entries.map((e) => abiType(e.schema)), rest); } catch { refuse('custom encoding: not the ABI encoding expected'); }
+      return Object.fromEntries(node.entries.map((e, i) => [e.name, fromAbi(e.schema, values[i])]));
+    }
     default: refuse('layout ' + node.type);
   }
+}
+// the Solidity type an entry of an `abi` node stands for
+function abiType(s) {
+  switch (s.type) {
+    case 'address': case 'bool': case 'string': return s.type;
+    case 'uint': case 'int': return s.type + s.bytes * 8;
+    case 'bytes': return s.length ? 'bytes' + s.length : 'bytes';
+    case 'array': return abiType(s.element) + (s.count ? `[${s.count}]` : '[]');
+    case 'abi': return `tuple(${s.entries.map((e) => abiType(e.schema)).join(',')})`;
+    default: refuse('abi entry ' + s.type);
+  }
+}
+function fromAbi(s, v) {
+  if (s.type === 'array') return [...v].map((x) => fromAbi(s.element, x));
+  if (s.type === 'abi') return Object.fromEntries(s.entries.map((e, i) => [e.name, fromAbi(e.schema, v[i])]));
+  if (s.type === 'bytes' && s.format === 'customEncoding') return customEncoding(s.params, v); // bytes with a layout of their own
+  return v;
 }
 function customEncoding(params, hexValue) {
   const cur = { buf: Buffer.from(hexValue.slice(2), 'hex'), pos: 0 };
@@ -84,14 +108,16 @@ function format(f, value, scope, env) {
       // a flag for "the sender of this call": in a call the router forwards, that sender is the router
       if (p.senderAddress?.some((x) => x.toLowerCase() === a)) a = scope.tx.from.toLowerCase();
       if (env.registry) return getAddress(a);
+      // 0x…02 is "this contract" only where the contract maps recipient flags, which are the fields that also map
+      // 0x…01. Not expressible today, see README.
+      if (p.senderAddress && a === '0x0000000000000000000000000000000000000002') a = scope.tx.to.toLowerCase();
       if (a === scope.names.you) return 'You';
-      // 0x…02 is "the router" only where the router maps recipient flags, which are the fields that also map 0x…01.
-      // Not expressible today, see README.
-      if ((p.senderAddress && a === '0x0000000000000000000000000000000000000002') || a === scope.names.router) return 'Uniswap router';
+      if (a === scope.names.router) return 'Uniswap router';
       if (p.types?.includes('token') && env.token(a)) return env.token(a).symbol;
-      return value;
+      return a === value.toLowerCase() ? value : getAddress(a);
     }
     case 'nftName': return String(value);
+    case 'tokenTicker': return env.token(value.toLowerCase())?.symbol ?? `(unknown token ${value.toLowerCase()})`;
     case 'date': if (value > 8640000000000n) return 'timestamp ' + value; // beyond what a date can show, e.g. type(uint48).max
       if (env.registry) return new Date(Number(value) * 1000).toISOString().slice(0, 19).replace('T', ' ') + 'Z';
       return new Date(Number(value) * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
@@ -189,7 +215,8 @@ function interaction(i, scope, env, out) {
 
 // `outer` is set when the call is one that another call carries: "You" and "the router" keep their meaning there.
 export function render(descriptor, tx, env, outer = {}) {
-  const names = outer.names ?? { you: tx.from.toLowerCase(), router: tx.to.toLowerCase() };
+  // the contract called is named only when it is the router; any other is shown by its address
+  const names = outer.names ?? { you: tx.from.toLowerCase(), router: descriptor.metadata?.contractName === 'Universal Router' ? tx.to.toLowerCase() : undefined };
   for (const [signature, spec] of Object.entries(descriptor.display.formats)) {
     const fn = FunctionFragment.from('function ' + signature);
     if (id(fn.format('sighash')).slice(0, 10) !== tx.input.slice(0, 10)) continue;

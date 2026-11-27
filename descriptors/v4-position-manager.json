@@ -1,0 +1,633 @@
+{
+  "$schema": "https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json",
+  "context": {
+    "$id": "Uniswap v4 Position Manager",
+    "contract": {
+      "deployments": [
+        {
+          "chainId": 1,
+          "address": "0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9e"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "owner": "Uniswap Labs",
+    "contractName": "PositionManager",
+    "info": {
+      "url": "https://uniswap.org/"
+    }
+  },
+  "display": {
+    "formats": {
+      "modifyLiquidities(bytes unlockData,uint256 deadline)": {
+        "$id": "modify liquidities",
+        "intent": "Manage liquidity",
+        "fields": [
+          {
+            "path": "#.unlockData",
+            "visible": "never",
+            "format": "customEncoding",
+            "params": {
+              "type": "abi",
+              "entries": [
+                {
+                  "name": "actions",
+                  "schema": {
+                    "type": "bytes",
+                    "format": "customEncoding",
+                    "params": {
+                      "type": "sequence",
+                      "element": {
+                        "type": "uint",
+                        "bytes": 1
+                      }
+                    }
+                  }
+                },
+                {
+                  "name": "params",
+                  "schema": {
+                    "type": "array",
+                    "element": {
+                      "type": "bytes"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "path": "#.unlockData.params.[]",
+            "label": "Step",
+            "switch": {
+              "expression": {
+                "path": "#.unlockData.actions.[$index]"
+              },
+              "cases": {
+                "0x00": {
+                  "(uint256 tokenId,uint256 liquidity,uint128 amount0Max,uint128 amount1Max,bytes hookData)": {
+                    "intent": "Add liquidity",
+                    "fields": [
+                      {
+                        "path": "~.tokenId",
+                        "label": "Position",
+                        "format": "nftName",
+                        "params": {
+                          "collectionPath": "@.to"
+                        }
+                      },
+                      {
+                        "path": "~.liquidity",
+                        "label": "Liquidity to Add",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.amount0Max",
+                        "label": "Max Token0 (raw)",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.amount1Max",
+                        "label": "Max Token1 (raw)",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.hookData",
+                        "label": "Hook data",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x01": {
+                  "(uint256 tokenId,uint256 liquidity,uint128 amount0Min,uint128 amount1Min,bytes hookData)": {
+                    "intent": "Remove liquidity",
+                    "fields": [
+                      {
+                        "path": "~.tokenId",
+                        "label": "Position",
+                        "format": "nftName",
+                        "params": {
+                          "collectionPath": "@.to"
+                        }
+                      },
+                      {
+                        "path": "~.liquidity",
+                        "label": "Liquidity to Remove",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.amount0Min",
+                        "label": "Min Token0 (raw)",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.amount1Min",
+                        "label": "Min Token1 (raw)",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.hookData",
+                        "label": "Hook data",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x02": {
+                  "((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,int24 tickLower,int24 tickUpper,uint256 liquidity,uint128 amount0Max,uint128 amount1Max,address owner,bytes hookData)": {
+                    "intent": "Create position",
+                    "fields": [
+                      {
+                        "path": "~.amount0Max",
+                        "label": "Maximum to Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.poolKey.currency0",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.amount1Max",
+                        "label": "Maximum to Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.poolKey.currency1",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.liquidity",
+                        "label": "Liquidity",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.tickLower",
+                        "label": "Lower Tick",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.tickUpper",
+                        "label": "Upper Tick",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.owner",
+                        "label": "Position Owner",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.hooks",
+                        "label": "Pool hook",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "contract"
+                          ]
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            "0x0000000000000000000000000000000000000000"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.hookData",
+                        "label": "Hook data",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x03": {
+                  "(uint256 tokenId,uint128 amount0Min,uint128 amount1Min,bytes hookData)": {
+                    "intent": "Close position",
+                    "fields": [
+                      {
+                        "path": "~.tokenId",
+                        "label": "Position",
+                        "format": "nftName",
+                        "params": {
+                          "collectionPath": "@.to"
+                        }
+                      },
+                      {
+                        "path": "~.amount0Min",
+                        "label": "Min Token0 (raw)",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.amount1Min",
+                        "label": "Min Token1 (raw)",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.hookData",
+                        "label": "Hook data",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x04": {
+                  "(uint256 tokenId,uint128 amount0Max,uint128 amount1Max,bytes hookData)": {
+                    "intent": "Add liquidity",
+                    "fields": [
+                      {
+                        "path": "~.tokenId",
+                        "label": "Position",
+                        "format": "nftName",
+                        "params": {
+                          "collectionPath": "@.to"
+                        }
+                      },
+                      {
+                        "path": "~.amount0Max",
+                        "label": "Max Token0 (raw)",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.amount1Max",
+                        "label": "Max Token1 (raw)",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.hookData",
+                        "label": "Hook data",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x05": {
+                  "((address currency0,address currency1,uint24 fee,int24 tickSpacing,address hooks) poolKey,int24 tickLower,int24 tickUpper,uint128 amount0Max,uint128 amount1Max,address owner,bytes hookData)": {
+                    "intent": "Create position",
+                    "fields": [
+                      {
+                        "path": "~.amount0Max",
+                        "label": "Maximum to Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.poolKey.currency0",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.amount1Max",
+                        "label": "Maximum to Send",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.poolKey.currency1",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      },
+                      {
+                        "path": "~.tickLower",
+                        "label": "Lower Tick",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.tickUpper",
+                        "label": "Upper Tick",
+                        "format": "raw"
+                      },
+                      {
+                        "path": "~.owner",
+                        "label": "Position Owner",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.poolKey.hooks",
+                        "label": "Pool hook",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "contract"
+                          ]
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            "0x0000000000000000000000000000000000000000"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.hookData",
+                        "label": "Hook data",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0b": {
+                  "(address currency,uint256 amount,bool payerIsUser)": {
+                    "intent": "Pay",
+                    "fields": [
+                      {
+                        "path": "~.currency",
+                        "label": "Token",
+                        "format": "tokenTicker"
+                      },
+                      {
+                        "path": "~.amount",
+                        "label": "Pay Pool",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.currency",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                          "message": "Entire balance"
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            0
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.payerIsUser",
+                        "label": "Paid by Caller",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            true
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x0d": {
+                  "(address currency0,address currency1)": {
+                    "intent": "Pay",
+                    "fields": [
+                      {
+                        "path": "~.currency0",
+                        "label": "Token",
+                        "format": "tokenTicker"
+                      },
+                      {
+                        "path": "~.currency1",
+                        "label": "Token",
+                        "format": "tokenTicker"
+                      }
+                    ]
+                  }
+                },
+                "0x0e": {
+                  "(address currency,address recipient,uint256 amount)": {
+                    "intent": "Receive",
+                    "fields": [
+                      {
+                        "path": "~.currency",
+                        "label": "Token",
+                        "format": "tokenTicker"
+                      },
+                      {
+                        "path": "~.amount",
+                        "label": "Take from Pool",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.currency",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            0
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x11": {
+                  "(address currency0,address currency1,address recipient)": {
+                    "intent": "Receive",
+                    "fields": [
+                      {
+                        "path": "~.currency0",
+                        "label": "Token",
+                        "format": "tokenTicker"
+                      },
+                      {
+                        "path": "~.currency1",
+                        "label": "Token",
+                        "format": "tokenTicker"
+                      },
+                      {
+                        "path": "~.recipient",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x12": {
+                  "(address currency)": {
+                    "intent": "Settle",
+                    "fields": [
+                      {
+                        "path": "~.currency",
+                        "label": "Token",
+                        "format": "tokenTicker"
+                      }
+                    ]
+                  }
+                },
+                "0x13": {
+                  "(address currency,uint256 amountMax)": {
+                    "intent": "Receive",
+                    "fields": [
+                      {
+                        "path": "~.amountMax",
+                        "label": "Forfeit if at Most",
+                        "format": "tokenAmount",
+                        "params": {
+                          "tokenPath": "~.currency",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x14": {
+                  "(address currency,address to)": {
+                    "intent": "Collect",
+                    "fields": [
+                      {
+                        "path": "~.currency",
+                        "label": "Collect All",
+                        "format": "tokenTicker"
+                      },
+                      {
+                        "path": "~.to",
+                        "label": "Recipient",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ],
+                          "senderAddress": [
+                            "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x15": {
+                  "(uint256 amount)": {
+                    "intent": "Wrap",
+                    "fields": [
+                      {
+                        "path": "~.amount",
+                        "label": "Wrap",
+                        "format": "tokenAmount",
+                        "params": {
+                          "token": "0x0000000000000000000000000000000000000000",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                          "message": "Entire balance"
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            0
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x16": {
+                  "(uint256 amount)": {
+                    "intent": "Unwrap",
+                    "fields": [
+                      {
+                        "path": "~.amount",
+                        "label": "Unwrap",
+                        "format": "tokenAmount",
+                        "params": {
+                          "token": "0x0000000000000000000000000000000000000000",
+                          "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                          "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                          "message": "Entire balance"
+                        },
+                        "visible": {
+                          "ifNotIn": [
+                            0
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "$default": "reject"
+              }
+            }
+          },
+          {
+            "path": "#.deadline",
+            "label": "Valid Until",
+            "format": "date",
+            "params": {
+              "encoding": "timestamp"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

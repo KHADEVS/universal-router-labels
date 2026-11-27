@@ -17,7 +17,9 @@ const ELSEWHERE = { [`8453:${USDC_BASE}`]: { symbol: 'USDC', decimals: 6 }, [`13
 const CHAINS = { 130: 'Unichain', 8453: 'Base' };
 const V3_POSITIONS = '0xc36442b4a4522e871399cd717abdd847ab11fe88';
 const V3_POSITIONS_FILE = 'vendor/registry/calldata-UniswapV3NonfungiblePositionManager.json';
-const CALLED = { [V3_POSITIONS]: JSON.parse(fs.readFileSync(V3_POSITIONS_FILE)) };
+const V4_POSITIONS = '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e', V4_POSITIONS_FILE = 'descriptors/v4-position-manager.json';
+const DPM = JSON.parse(fs.readFileSync(V4_POSITIONS_FILE));
+const CALLED = { [V3_POSITIONS]: JSON.parse(fs.readFileSync(V3_POSITIONS_FILE)), [V4_POSITIONS]: DPM };
 const env = {
   native: { symbol: 'ETH', decimals: 18 },
   token: (a, chain) => (chain === undefined ? TOKENS[a] : ELSEWHERE[`${chain}:${a}`]) ?? null,
@@ -124,8 +126,46 @@ it('v3 position: a call the position manager descriptor does not have is refused
 it('v3 position: an approval for all positions is shown, though the router would revert', () => {
   assert.ok(shown(D20, tx('0x12', [positions.encodeFunctionData('setApprovalForAll', [BAD, true])])).some((x) => x.toLowerCase().includes(BAD)));
 });
-it('v4 position: without a descriptor for the v4 position manager the call is refused', () => {
-  refused(D20, tx('0x14', ['0xdd46508f' + '00'.repeat(64)]), /no descriptor for the contract called/);
+
+// --- calls forwarded to the v4 position manager ---
+const manager = new Interface(['function modifyLiquidities(bytes unlockData,uint256 deadline)']);
+const liquidity = (actions, params) => manager.encodeFunctionData('modifyLiquidities', [c.encode(['bytes', 'bytes[]'], [actions, params]), 1795600000n]);
+const KEY = '(address,address,uint24,int24,address)';
+const mint = (owner, key = [ZERO, USDC, 500, 10, ZERO]) => c.encode([KEY, 'int24', 'int24', 'uint256', 'uint128', 'uint128', 'address', 'bytes'],
+  [key, -887220, 887220, 10n ** 12n, 10n ** 18n, 3900n * 10n ** 6n, owner, '0x']);
+const pair = (a, b) => c.encode(['address', 'address'], [a, b]);
+it('v4 position: creating a position through the router shows the amounts, the range and the owner', () => {
+  assert.deepEqual(shown(D20, tx('0x14', [liquidity('0x020d', [mint(ME, [WETH, USDC, 500, 10, ZERO]), pair(WETH, USDC)])])), [
+    'Maximum to Send: 1 WETH', 'Maximum to Send: 3900 USDC', 'Liquidity: 1000000000000', 'Lower Tick: -887220', 'Upper Tick: 887220', 'Position Owner: You',
+    'Token: WETH', 'Token: USDC', 'Valid Until: 2026-11-25 09:46 UTC', 'Valid Until: 2026-11-25 09:46 UTC']);
+});
+it('v4 position: an amount in the native currency is shown, but the format cannot name it alone', () => {
+  const l = shown(D20, tx('0x14', [liquidity('0x020d', [mint(ME), pair(ZERO, USDC)])]));
+  assert.ok(l.includes('Maximum to Send: 1 ETH') && l.includes(`Token: (unknown token ${ZERO})`));
+});
+it('v4 position: through the router, the owner 0x…01 is the router, not the signer', () => {
+  assert.ok(shown(D20, tx('0x14', [liquidity('0x02', [mint(FLAG_ME)])])).includes('Position Owner: Uniswap router'));
+});
+it('v4 position: another owner, and what is left sent elsewhere, are shown', () => {
+  const l = shown(D20, tx('0x14', [liquidity('0x0214', [mint(BAD), pair(USDC, BAD)])]));
+  assert.ok(l.some(isBad('Position Owner')) && l.includes('Collect All: USDC') && l.some(isBad('Recipient')));
+});
+it('v4 position: what is paid from the position manager, and what may be given up, are shown', () => {
+  const settle = c.encode(['address', 'uint256', 'bool'], [USDC, 0n, false]), clear = c.encode(['address', 'uint256'], [USDC, 5n * 10n ** 6n]);
+  assert.deepEqual(shown(D20, tx('0x14', [liquidity('0x0b13', [settle, clear])])).slice(0, 3), ['Token: USDC', 'Paid by Caller: false', 'Forfeit if at Most: 5 USDC']);
+});
+it('v4 position: adding to a position is shown raw, though the router would revert', () => {
+  const add = c.encode(['uint256', 'uint256', 'uint128', 'uint128', 'bytes'], [77n, 10n ** 9n, 5n, 6n, '0x']);
+  assert.deepEqual(shown(D20, tx('0x14', [liquidity('0x00', [add])])).slice(0, 4), ['Position: 77', 'Liquidity to Add: 1000000000', 'Max Token0 (raw): 5', 'Max Token1 (raw): 6']);
+});
+it('v4 position: an action the position manager does not have, or bytes that are no ABI encoding, are refused', () => {
+  refused(D20, tx('0x14', [liquidity('0x06', ['0x'])]), /no case for 0x06/);
+  refused(D20, tx('0x14', [manager.encodeFunctionData('modifyLiquidities', ['0x1234', 1795600000n])]), /not the ABI encoding/);
+  refused(D20, tx('0x14', ['0xdeadbeef' + '00'.repeat(64)]), /unknown selector/);
+});
+it('v4 position: called directly, 0x…01 is the signer and 0x…02 the position manager', () => {
+  const direct = flat(render(DPM, { from: ME, to: V4_POSITIONS, value: 0n, input: liquidity('0x0214', [mint(FLAG_ME), pair(USDC, FLAG_ROUTER)]) }, env));
+  assert.ok(direct.includes('Position Owner: You') && direct.some((x) => x.toLowerCase() === `recipient: ${V4_POSITIONS}`));
 });
 
 // --- Across deposit (2.1+) ---
@@ -227,7 +267,7 @@ after(() => {
     about: 'Universal Router calls built to mislead a reader, with what a careful wallet shows, or the fact that it refuses. See cases/README.md.',
     environment: {
       chainId: 1, sender: ME, native: env.native, tokens: TOKENS, tokensOnOtherChains: ELSEWHERE, chainNames: CHAINS,
-      descriptorsOfCalledContracts: { [V3_POSITIONS]: V3_POSITIONS_FILE },
+      descriptorsOfCalledContracts: { [V3_POSITIONS]: V3_POSITIONS_FILE, [V4_POSITIONS]: V4_POSITIONS_FILE },
       routers: { '2.0': R20, '2.1': R21 },
     },
     cases: numbered,
