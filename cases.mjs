@@ -11,10 +11,13 @@ let wrong = 0, total = 0;
 for (const file of files) {
   const suite = JSON.parse(fs.readFileSync(file));
   const e = suite.environment;
+  // the contracts the router forwards calls to are read with their own descriptors
+  const called = Object.fromEntries(Object.entries(e.descriptorsOfCalledContracts ?? {}).map(([a, f]) => [a.toLowerCase(), JSON.parse(fs.readFileSync(f))]));
   const env = {
     native: e.native,
     token: (a, chain) => (chain === undefined ? e.tokens[a] : e.tokensOnOtherChains?.[`${chain}:${a}`]) ?? null,
     chain: (n) => e.chainNames?.[n],
+    descriptor: (a) => called[a],
   };
   for (const c of suite.cases) {
     total++;

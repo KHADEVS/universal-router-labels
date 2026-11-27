@@ -57,18 +57,18 @@ The same two files, unchanged, on calls sampled over the same 24 hours:
 
 ### Commands
 
-Described: the two v2 and two v3 swaps, `V4_SWAP` with its 9 actions, Permit2 permits and transfers (single and batch), `SWEEP`, `TRANSFER`, both fee portions, wrap and unwrap, the balance check, pool creation, sub-plans, and on 2.1+ `executeSigned` and the Across deposit.
+Described: the two v2 and two v3 swaps, `V4_SWAP` with its 9 actions, Permit2 permits and transfers (single and batch), `SWEEP`, `TRANSFER`, both fee portions, wrap and unwrap, the balance check, pool creation, sub-plans, and on 2.1+ `executeSigned` and the Across deposit. The calls the router forwards to the v3 position manager (permit, then decreaseLiquidity, collect and burn) are shown with the registry's own descriptor for that contract.
 
-Refused: calls to the v3 and v4 position managers (their address differs per chain, and a descriptor has no per-deployment constant).
+Refused: calls to the v4 position manager, until that contract has a descriptor. Its `unlockData` is bytes that hold an ABI-encoded tuple, which the draft cannot describe without the `abi` node of [forshtat/ERCs#14](https://github.com/forshtat/ERCs/pull/14).
 
 ## Checks
 
 - Both descriptors are valid against the draft's schema, with its ten examples as a control.
 - The 1,994 transactions render. The survey was decoded a second time with ethers.
 - **Labels against receipts.** For the 681 transactions with a limit, 619 succeeded. In plans with a single swap, the token labelled as sent left the signer (259 of 259, never more than labelled) and the token labelled as received reached them (389 of 389, never less than labelled). ERC-20 legs only: native amounts are not in the logs. Three descriptors broken on purpose give 423, 56 and 9 differences.
-- 28 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan, a bridge deposit whose recipient is `0x…01`.
+- 34 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan, a bridge deposit whose recipient is `0x…01`, a v3 position permit for someone other than the router.
 - `registry-tests/` holds 24 of the real transactions in the test format of the ERC-7730 registry (raw transaction, token data, expected display), valid against its schema, for the day a runner supports the extension.
-- `cases/` holds the calls built to mislead as data: 40 cases, 15 of which must be refused, each with the call and what a careful wallet shows. With the 24 real transactions that is 64 cases a reader in any language can run ([format](cases/README.md)).
+- `cases/` holds the calls built to mislead as data: 45 cases, 15 of which must be refused, each with the call and what a careful wallet shows. With the 24 real transactions that is 69 cases a reader in any language can run ([format](cases/README.md)).
 
 ## What we learned
 
@@ -85,6 +85,8 @@ Refused: calls to the v3 and v4 position managers (their address differs per cha
 **6. A sub-plan is an `interaction` with the router itself:** `execute(commands, inputs)` called with the decoded values. It works, and it raises a question: inside an interaction, what are `@.value` and `@.from`? Here the inner call carries no value, and `0x…01` still means the signer.
 
 **7. Points the draft leaves open:** what `$index` refers to inside a nested iteration (v4 actions inside commands), `.[-1]` on a decoded sequence, and what a wallet does when `commands` and `inputs` have different lengths (the router reverts, we refuse).
+
+**8. A call the router forwards needs a file per chain, and a careful reader.** Commands `0x11`, `0x12` and `0x14` carry a whole call to a position manager, which ERC-7730's `calldata` format covers. Its `callee` is a constant, and the position managers differ from chain to chain, so the descriptors are built per chain (`build(version, chainId)` in `gen.mjs`; the two files here are Mainnet's). Inside that call the sender is the router: a reader that prints the signer as "you" has to keep that meaning when it goes one call down. The router checks that `0x11` is a permit, not who the permit is for, so the operator is what to read there.
 
 A packed v3 path decoded as `token | (fee | token)*` refuses the appended address of [registry#3136](https://github.com/ethereum/clear-signing-erc7730-registry/issues/3136).
 
@@ -104,6 +106,6 @@ node registry-tests.mjs survey/sample.json survey/limited.json <registry>/specs/
 
 ## Not done
 
-Position manager commands, routers older than 2.0, receipts on other chains, hardware screens, translation. The reader is for checking the labels, not for a wallet.
+A descriptor for the v4 position manager, routers older than 2.0, receipts on other chains, hardware screens, translation. The reader is for checking the labels, not for a wallet.
 
 MIT licence.

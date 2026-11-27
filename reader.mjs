@@ -44,6 +44,7 @@ function resolve(path, scope) {
   if (path.startsWith('#.')) [root, rest] = [scope.args, path.slice(2)];
   else if (path.startsWith('~.')) [root, rest] = [scope.local, path.slice(2)];
   else if (path.startsWith('@.')) [root, rest] = [scope.tx, path.slice(2)];
+  else if (path.startsWith('$.')) [root, rest] = [scope.descriptor, path.slice(2)]; // a constant of the descriptor
   else [root, rest] = [scope.local ?? scope.args, path];
   let vals = [root];
   for (const part of rest.split('.')) {
@@ -79,15 +80,18 @@ function format(f, value, scope, env) {
       if (p.threshold && value >= BigInt(p.threshold)) return p.message;
       return `${units(value, env.native.decimals)} ${env.native.symbol}`;
     case 'addressName': {
-      const a = value.toLowerCase();
-      if (env.registry) return getAddress(p.senderAddress?.some((x) => x.toLowerCase() === a) ? scope.tx.from : a);
-      if (p.senderAddress?.some((x) => x.toLowerCase() === a) || a === scope.tx.from.toLowerCase()) return 'You';
+      let a = value.toLowerCase();
+      // a flag for "the sender of this call": in a call the router forwards, that sender is the router
+      if (p.senderAddress?.some((x) => x.toLowerCase() === a)) a = scope.tx.from.toLowerCase();
+      if (env.registry) return getAddress(a);
+      if (a === scope.names.you) return 'You';
       // 0x…02 is "the router" only where the router maps recipient flags, which are the fields that also map 0x…01.
       // Not expressible today, see README.
-      if ((p.senderAddress && a === '0x0000000000000000000000000000000000000002') || a === scope.tx.to.toLowerCase()) return 'Uniswap router';
+      if ((p.senderAddress && a === '0x0000000000000000000000000000000000000002') || a === scope.names.router) return 'Uniswap router';
       if (p.types?.includes('token') && env.token(a)) return env.token(a).symbol;
       return value;
     }
+    case 'nftName': return String(value);
     case 'date': if (value > 8640000000000n) return 'timestamp ' + value; // beyond what a date can show, e.g. type(uint48).max
       if (env.registry) return new Date(Number(value) * 1000).toISOString().slice(0, 19).replace('T', ' ') + 'Z';
       return new Date(Number(value) * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
@@ -112,6 +116,8 @@ function show(fields, scope, env, out) {
     const value = resolve(f.path, scope);
     (Array.isArray(value) ? value : [value]).forEach((v, each) => {
       if (f.visible?.ifNotIn?.some((x) => same(x, v))) return;
+      // hidden, and the call is refused when the value is any other
+      if (f.visible?.mustMatch) { if (!f.visible.mustMatch.some((x) => same(x, v))) refuse(`${f.label} is not ${f.visible.mustMatch.join(' or ')}`); return; }
       out.push({ label: f.label, value: format(f, v, { ...scope, each }, env) });
     });
   }
@@ -137,7 +143,9 @@ function showSwitch(f, scope, env, out) {
   if (tags.length !== value.length) refuse('as many tags as inputs expected'); // the router reverts (LengthMismatch)
   value.forEach((payload, index) => {
     const inner = { ...scope, index };
-    const [signature, spec] = Object.entries(pick(f.switch, inner))[0];
+    const picked = pick(f.switch, inner);
+    if (picked.format === 'calldata') { out.push({ ...embedded(picked.params, payload, inner, env), group: f.label }); return; }
+    const [signature, spec] = Object.entries(picked)[0];
     const params = ParamType.from(`tuple${signature}`).components;
     inner.local = decodeTuple(params, payload);
     prepare(spec.fields, inner.local);
@@ -146,9 +154,23 @@ function showSwitch(f, scope, env, out) {
   });
 }
 
+const MAX_DEPTH = 4;
+// ERC-7730's `calldata`: bytes that are a whole call to another contract. It is shown with the descriptor of that
+// contract, which the wallet has to hold; without one the call is refused, not shown as a hash.
+function embedded(params, payload, scope, env) {
+  let callee = params.callee ?? resolve(params.calleePath, scope);
+  if (typeof callee === 'string' && callee.startsWith('$.')) callee = resolve(callee, scope);
+  callee = String(callee).toLowerCase();
+  const descriptor = env.descriptor?.(callee);
+  if (!descriptor) refuse('no descriptor for the contract called, ' + callee);
+  if ((scope.depth ?? 0) >= MAX_DEPTH) refuse('calls nested too deep');
+  // the router is the caller, and sends no value of its own with these calls
+  const r = render(descriptor, { from: scope.tx.to, to: callee, value: 0n, input: payload }, env, { names: scope.names, depth: (scope.depth ?? 0) + 1 });
+  return { label: r.intent, steps: r.fields };
+}
+
 // A call the contract builds itself. Only calls to the contract being described are followed: the format is
 // looked up in the same descriptor, and the arguments are the decoded values, not bytes.
-const MAX_DEPTH = 4;
 function interaction(i, scope, env, out) {
   const to = resolve(i.to, scope);
   if (String(to).toLowerCase() !== scope.tx.to.toLowerCase()) refuse('interaction with another contract');
@@ -165,11 +187,13 @@ function interaction(i, scope, env, out) {
   show(found[1].fields, inner, env, out);
 }
 
-export function render(descriptor, tx, env) {
+// `outer` is set when the call is one that another call carries: "You" and "the router" keep their meaning there.
+export function render(descriptor, tx, env, outer = {}) {
+  const names = outer.names ?? { you: tx.from.toLowerCase(), router: tx.to.toLowerCase() };
   for (const [signature, spec] of Object.entries(descriptor.display.formats)) {
     const fn = FunctionFragment.from('function ' + signature);
     if (id(fn.format('sighash')).slice(0, 10) !== tx.input.slice(0, 10)) continue;
-    const scope = { descriptor, tx: { ...tx, value: BigInt(tx.value) }, args: decodeTuple([...fn.inputs], '0x' + tx.input.slice(10)) };
+    const scope = { descriptor, names, depth: outer.depth, tx: { ...tx, value: BigInt(tx.value) }, args: decodeTuple([...fn.inputs], '0x' + tx.input.slice(10)) };
     prepare(spec.fields, scope.args);
     const out = []; show(spec.fields, scope, env, out);
     return { intent: spec.intent, fields: out };

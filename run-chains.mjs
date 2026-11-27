@@ -2,14 +2,19 @@
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import { render, Refused } from './reader.mjs';
-const load = (v) => JSON.parse(fs.readFileSync(`descriptors/universal-router-${v}.json`));
-const desc = { V2: load('2.0'), V2_1_1: load('2.1'), V2_1_2: load('2.1'), V2_2_0: load('2.1') };
-const env = { native: { symbol: 'native', decimals: 18 }, token: () => null };
+import { build, POSITION_MANAGERS } from './gen.mjs';
+// each chain has its own position managers, so its own descriptors
+const IDS = { arbitrum: 42161, base: 8453, bsc: 56, optimism: 10, polygon: 137, unichain: 130 };
+const v3Positions = JSON.parse(fs.readFileSync('vendor/registry/calldata-UniswapV3NonfungiblePositionManager.json'));
 let failed = false;
 console.log('| chain | blocks | transactions | router calls | on 2.0 / 2.1+ | older routers | rendered |');
 console.log('|---|---|---|---|---|---|---|');
 for (const f of fs.readdirSync('survey/chains').sort()) {
   const s = JSON.parse(zlib.gunzipSync(fs.readFileSync('survey/chains/' + f)));
+  const chainId = IDS[s.chain]; if (!chainId) throw new Error('unknown chain ' + s.chain);
+  const desc = { V2: build('2.0', chainId), V2_1_1: build('2.1', chainId), V2_1_2: build('2.1', chainId), V2_2_0: build('2.1', chainId) };
+  const env = { native: { symbol: 'native', decimals: 18 }, token: () => null,
+    descriptor: (a) => (a === POSITION_MANAGERS[chainId].v3.toLowerCase() ? v3Positions : undefined) };
   let ok = 0, old = 0, v20 = 0, v21 = 0; const bad = {};
   for (const t of s.txs) {
     const d = desc[t.v]; if (!d) { old++; continue; }
@@ -19,7 +24,7 @@ for (const f of fs.readdirSync('survey/chains').sort()) {
   }
   const n = v20 + v21;
   console.log(`| ${s.chain} | ${s.blocks.length} | ${s.blocks.reduce((a, b) => a + b.txs, 0)} | ${s.txs.length} | ${v20} / ${v21} | ${old} | ${ok} of ${n} |`);
-  // calls to the position managers are refused on purpose, anything else is a failure
-  for (const [k, v] of Object.entries(bad)) { if (!/no case for 0x1[124] /.test(k)) failed = true; console.log('   refused:', v.length, k, v.slice(0, 2).join(' ')); }
+  // a call to the v4 position manager has no descriptor yet and is refused, anything else is a failure
+  for (const [k, v] of Object.entries(bad)) { if (!/no descriptor for the contract called/.test(k)) failed = true; console.log('   refused:', v.length, k, v.slice(0, 2).join(' ')); }
 }
 process.exit(failed ? 1 : 0);

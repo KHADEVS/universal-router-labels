@@ -16,6 +16,10 @@
     "contractName": "Universal Router",
     "info": {
       "url": "https://uniswap.org/"
+    },
+    "constants": {
+      "v3PositionManager": "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
+      "v4PositionManager": "0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9e"
     }
   },
   "display": {
@@ -1196,6 +1200,24 @@
                         "format": "raw"
                       }
                     ]
+                  }
+                },
+                "0x11": {
+                  "format": "calldata",
+                  "params": {
+                    "callee": "$.metadata.constants.v3PositionManager"
+                  }
+                },
+                "0x12": {
+                  "format": "calldata",
+                  "params": {
+                    "callee": "$.metadata.constants.v3PositionManager"
+                  }
+                },
+                "0x14": {
+                  "format": "calldata",
+                  "params": {
+                    "callee": "$.metadata.constants.v4PositionManager"
                   }
                 },
                 "0x21": {
@@ -2409,6 +2431,24 @@
                         "format": "raw"
                       }
                     ]
+                  }
+                },
+                "0x11": {
+                  "format": "calldata",
+                  "params": {
+                    "callee": "$.metadata.constants.v3PositionManager"
+                  }
+                },
+                "0x12": {
+                  "format": "calldata",
+                  "params": {
+                    "callee": "$.metadata.constants.v3PositionManager"
+                  }
+                },
+                "0x14": {
+                  "format": "calldata",
+                  "params": {
+                    "callee": "$.metadata.constants.v4PositionManager"
                   }
                 },
                 "0x21": {

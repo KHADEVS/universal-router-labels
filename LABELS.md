@@ -24,6 +24,9 @@ Every call starts with **Uniswap trade**, then **Native Amount** when ETH is sen
 | `0x03` PERMIT2_PERMIT_BATCH | Approve | **Allow Spending** ("Unlimited" for the maximum) · **Spender** · **Approval Expires** |
 | `0x0d` PERMIT2_TRANSFER_FROM_BATCH | Send | **Send** · **Recipient** (`0x…01` shown as the sender) |
 | `0x13` V4_INITIALIZE_POOL | Create pool | **Token** · **Token** · **Pool hook** (hidden when zero) · **Starting Price (sqrt, Q96)** |
+| `0x11` V3_POSITION_MANAGER_PERMIT | that of the call | a whole call to the v3 position manager, shown with that contract's own descriptor |
+| `0x12` V3_POSITION_MANAGER_CALL | that of the call | a whole call to the v3 position manager, shown with that contract's own descriptor |
+| `0x14` V4_POSITION_MANAGER_CALL | that of the call | a whole call to the v4 position manager, shown with that contract's own descriptor |
 | `0x21` EXECUTE_SUB_PLAN | Sub-plan | the commands of the sub-plan, as below |
 | `0x07` PAY_PORTION_FULL_PRECISION | Fee | **Fee** · **Fee Token** · **Fee Recipient** (`0x…01` shown as the sender) |
 | `0x40` ACROSS_V4_DEPOSIT_V3 | Bridge | **Send** ("Entire router balance" for 2^255, ETH when `useNative`) · **Receive on Destination** (refused when `outputToken` is zero, token looked up on the destination chain) · **Destination Chain** · **Recipient on Destination** · **Refund Address** · **Refunded if Not Filled by** · **Message for Recipient** (hidden when empty) |

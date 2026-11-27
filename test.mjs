@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
-import { AbiCoder, id } from 'ethers';
+import { AbiCoder, Interface, id } from 'ethers';
 import { render, Refused } from './reader.mjs';
 
 const c = AbiCoder.defaultAbiCoder();
@@ -15,10 +15,15 @@ const TOKENS = { [DAI]: { symbol: 'DAI', decimals: 18 }, [WETH]: { symbol: 'WETH
 const USDC_BASE = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', WETH_UNICHAIN = '0x4200000000000000000000000000000000000006';
 const ELSEWHERE = { [`8453:${USDC_BASE}`]: { symbol: 'USDC', decimals: 6 }, [`130:${WETH_UNICHAIN}`]: { symbol: 'WETH', decimals: 18 } };
 const CHAINS = { 130: 'Unichain', 8453: 'Base' };
+const V3_POSITIONS = '0xc36442b4a4522e871399cd717abdd847ab11fe88';
+const V3_POSITIONS_FILE = 'vendor/registry/calldata-UniswapV3NonfungiblePositionManager.json';
+const CALLED = { [V3_POSITIONS]: JSON.parse(fs.readFileSync(V3_POSITIONS_FILE)) };
 const env = {
   native: { symbol: 'ETH', decimals: 18 },
   token: (a, chain) => (chain === undefined ? TOKENS[a] : ELSEWHERE[`${chain}:${a}`]) ?? null,
   chain: (n) => CHAINS[n],
+  // descriptors of the contracts the router forwards calls to: the registry's own file for the v3 position manager
+  descriptor: (a) => CALLED[a],
 };
 const strip = (x) => x.slice(2);
 const path = (...p) => '0x' + p.map((x) => (typeof x === 'number' ? x.toString(16).padStart(6, '0') : strip(x))).join('');
@@ -75,7 +80,7 @@ it('the revert-allowed flag does not hide the command', () => {
 });
 it('more commands than inputs is refused', () => refused(D20, tx('0x0004', [v3(path(DAI, 500, USDC))]), /as many tags/));
 it('commands without a label are refused', () => {
-  for (const k of ['0x0f', '0x11', '0x12', '0x14', '0x15', '0x20', '0x22', '0x3f']) refused(D20, tx(k, ['0x']), /no case/);
+  for (const k of ['0x0f', '0x15', '0x20', '0x22', '0x3f']) refused(D20, tx(k, ['0x']), /no case/);
 });
 it('2.1: command 0x40 (Across deposit) is not read as a V3 swap', () => {
   const x = v3(path(DAI, 500, USDC));
@@ -84,6 +89,43 @@ it('2.1: command 0x40 (Across deposit) is not read as a V3 swap', () => {
   const wrong = JSON.parse(JSON.stringify(D21).replaceAll('"0x7f"', '"0x3f"'));
   const v = c.encode(['address', 'uint256', 'uint256', 'bytes', 'bool', 'uint256[]'], [FLAG_ME, 1000n * 10n ** 18n, 990n * 10n ** 6n, path(DAI, 500, USDC), true, []]);
   assert.ok(shown(wrong, tx('0x40', [v], { to: R21 })).includes('Send: 1000 DAI'));
+});
+
+// --- calls forwarded to the v3 position manager (moving a position to v4) ---
+const positions = new Interface([
+  'function permit(address spender,uint256 tokenId,uint256 deadline,uint8 v,bytes32 r,bytes32 s)',
+  'function decreaseLiquidity((uint256 tokenId,uint128 liquidity,uint256 amount0Min,uint256 amount1Min,uint256 deadline) params)',
+  'function collect((uint256 tokenId,address recipient,uint128 amount0Max,uint128 amount1Max) params)',
+  'function burn(uint256 tokenId)',
+  'function setApprovalForAll(address operator,bool approved)',
+]);
+const SIG = ['0x' + '11'.repeat(32), '0x' + '22'.repeat(32)], MAX128 = (1n << 128n) - 1n;
+const permit = (spender) => positions.encodeFunctionData('permit', [spender, 123456n, 1795600000n, 27, ...SIG]);
+const collect = (to) => positions.encodeFunctionData('collect', [[123456n, to, MAX128, MAX128]]);
+it('v3 position: the steps of a move to v4 are shown with the position manager\'s own labels', () => {
+  const l = shown(D20, tx('0x11121212', [permit(R20), positions.encodeFunctionData('decreaseLiquidity', [[123456n, 10n ** 6n, 1n, 2n, 1795600000n]]), collect(R20), positions.encodeFunctionData('burn', [123456n])]));
+  assert.deepEqual(l, ['Operator: Uniswap router', 'Position: 123456',
+    'Position: 123456', 'Liquidity to Remove: 1000000', 'Min Token0 Due (raw): 1', 'Min Token1 Due (raw): 2', 'Deadline: 2026-11-25 09:46 UTC',
+    'Position: 123456', `Max Token0 (raw): ${MAX128}`, `Max Token1 (raw): ${MAX128}`, 'Recipient: Uniswap router',
+    'Position: 123456', 'Valid Until: 2026-11-25 09:46 UTC']);
+});
+it('v3 position: a permit for someone other than the router is shown', () => {
+  // the router checks that the call is a permit, not who it is for
+  assert.ok(shown(D20, tx('0x11', [permit(BAD)])).some(isBad('Operator')));
+});
+it('v3 position: what is collected to another address is shown, and "you" stays the signer', () => {
+  assert.ok(shown(D20, tx('0x12', [collect(BAD)])).some(isBad('Recipient')));
+  assert.ok(shown(D20, tx('0x12', [collect(ME)])).includes('Recipient: You'));
+});
+it('v3 position: a call the position manager descriptor does not have is refused', () => {
+  refused(D20, tx('0x12', ['0xdeadbeef' + '00'.repeat(32)]), /unknown selector/);
+  refused(D20, tx('0x11', ['0x']), /unknown selector/);
+});
+it('v3 position: an approval for all positions is shown, though the router would revert', () => {
+  assert.ok(shown(D20, tx('0x12', [positions.encodeFunctionData('setApprovalForAll', [BAD, true])])).some((x) => x.toLowerCase().includes(BAD)));
+});
+it('v4 position: without a descriptor for the v4 position manager the call is refused', () => {
+  refused(D20, tx('0x14', ['0xdd46508f' + '00'.repeat(64)]), /no descriptor for the contract called/);
 });
 
 // --- Across deposit (2.1+) ---
@@ -185,6 +227,7 @@ after(() => {
     about: 'Universal Router calls built to mislead a reader, with what a careful wallet shows, or the fact that it refuses. See cases/README.md.',
     environment: {
       chainId: 1, sender: ME, native: env.native, tokens: TOKENS, tokensOnOtherChains: ELSEWHERE, chainNames: CHAINS,
+      descriptorsOfCalledContracts: { [V3_POSITIONS]: V3_POSITIONS_FILE },
       routers: { '2.0': R20, '2.1': R21 },
     },
     cases: numbered,

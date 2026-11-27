@@ -2,6 +2,19 @@
 // (ethereum/ERCs#1925). 2.0 and 2.1+ need separate files: 2.1 widened the command mask and added per-hop price
 // limits in the middle of several tuples.
 import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
+// The position managers each router is deployed with: script/deployParameters/Deploy*.s.sol of Uniswap/universal-router.
+// A descriptor has no per-deployment constant, so a file holds one chain when it names them.
+export const POSITION_MANAGERS = {
+  1: { v3: '0xC36442b4a4522E871399CD717aBDD847Ab11FE88', v4: '0xbD216513d74C8cf14cf4747E6AaA6420FF64ee9e' },
+  10: { v3: '0xC36442b4a4522E871399CD717aBDD847Ab11FE88', v4: '0x3C3Ea4B57a46241e54610e5f022E5c45859A1017' },
+  56: { v3: '0x7b8A01B39D58278b5DE7e48c8449c9f4F5170613', v4: '0x7A4a5c919aE2541AeD11041A1AEeE68f1287f95b' },
+  130: { v3: '0x943e6e07a7E8E791dAFC44083e54041D743C46E9', v4: '0x4529A01c7A0410167c5740C487A8DE60232617bf' },
+  137: { v3: '0xC36442b4a4522E871399CD717aBDD847Ab11FE88', v4: '0x1Ec2eBf4F37E7363FDfe3551602425af0B3ceef9' },
+  8453: { v3: '0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1', v4: '0x7C5f5A4bBd8fD63184577525326123B519429bDc' },
+  42161: { v3: '0xC36442b4a4522E871399CD717aBDD847Ab11FE88', v4: '0xd88F38F930b7952f2DB2432Cb002E7abbF3dD869' },
+};
 
 const FLAG_SENDER = '0x0000000000000000000000000000000000000001'; // ActionConstants.MSG_SENDER
 const NATIVE = '0x0000000000000000000000000000000000000000'; // Constants.ETH, Currency.wrap(address(0))
@@ -67,8 +80,12 @@ const byDirection = (path, label, ifZeroForOne, otherwise) => ({
 const hook = (path) => ({ path, label: 'Pool hook', format: 'addressName', params: { types: ['contract'] }, visible: { ifNotIn: [NATIVE] } });
 const hookData = (path) => ({ path, label: 'Hook data', format: 'raw', visible: { ifNotIn: ['0x'] } });
 
-function build(version) {
+// The files written here are for Mainnet. Another chain has other position managers, and its own list of routers:
+// build(version, chainId) gives its descriptor without that list.
+export function build(version, chainId = 1) {
   const v21 = version === '2.1';
+  // The input of these commands is a whole call, selector included, that the router forwards to a position manager.
+  const forwarded = (manager) => ({ format: 'calldata', params: { callee: `$.metadata.constants.${manager}` } });
   const hop = v21 ? ',uint256[] minHopPriceX36' : '';
   const single = v21 ? ',uint256 minHopPriceX36' : '';
   const multi = v21 ? ',uint256[] minHopPriceX36' : '';
@@ -163,6 +180,12 @@ function build(version) {
       hook('~.poolKey.hooks'),
       { path: '~.sqrtPriceX96', label: 'Starting Price (sqrt, Q96)', format: 'raw' },
     ] } },
+    // Moving a v3 position to v4. The router only lets through permit (0x11), then decreaseLiquidity, collect and
+    // burn for a position the signer may manage (0x12), and modifyLiquidities without increase, decrease or burn
+    // (0x14). What is shown is what the position manager's own descriptor says of the call.
+    '0x11': forwarded('v3PositionManager'),
+    '0x12': forwarded('v3PositionManager'),
+    '0x14': forwarded('v4PositionManager'),
     // A sub-plan is the router calling its own execute(commands, inputs): the caller stays the signer.
     '0x21': { '(bytes commands,bytes[] inputs)': { intent: 'Sub-plan', fields: [
       { interaction: { to: '@.to', signature: 'execute(bytes,bytes[])', args: [{ path: '~.commands' }, { path: '~.inputs' }] } },
@@ -199,8 +222,9 @@ function build(version) {
   const native = { path: '@.value', label: 'Native Amount', format: 'amount', visible: { ifNotIn: [0] } };
   return {
     $schema: 'https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json',
-    context: { $id: `Uniswap Universal Router ${version}`, contract: { deployments: DEPLOYMENTS[version] } },
-    metadata: { owner: 'Uniswap Labs', contractName: 'Universal Router', info: { url: 'https://uniswap.org/' } },
+    context: { $id: `Uniswap Universal Router ${version}`, contract: { deployments: chainId === 1 ? DEPLOYMENTS[version] : [] } },
+    metadata: { owner: 'Uniswap Labs', contractName: 'Universal Router', info: { url: 'https://uniswap.org/' },
+      constants: { v3PositionManager: POSITION_MANAGERS[chainId].v3, v4PositionManager: POSITION_MANAGERS[chainId].v4 } },
     display: { formats: {
       'execute(bytes commands,bytes[] inputs,uint256 deadline)': { $id: 'execute with deadline', intent: 'Uniswap trade',
         fields: [native, ...fields, { path: '#.deadline', label: 'Valid Until', format: 'date', params: { encoding: 'timestamp' } }] },
@@ -213,5 +237,7 @@ function build(version) {
   };
 }
 
-fs.mkdirSync('descriptors', { recursive: true });
-for (const v of ['2.0', '2.1']) fs.writeFileSync(`descriptors/universal-router-${v}.json`, JSON.stringify(build(v), null, 2) + '\n');
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  fs.mkdirSync('descriptors', { recursive: true });
+  for (const v of ['2.0', '2.1']) fs.writeFileSync(`descriptors/universal-router-${v}.json`, JSON.stringify(build(v), null, 2) + '\n');
+}
