@@ -68,6 +68,7 @@ Refused: calls to the v3 and v4 position managers (their address differs per cha
 - **Labels against receipts.** For the 681 transactions with a limit, 619 succeeded. In plans with a single swap, the token labelled as sent left the signer (259 of 259, never more than labelled) and the token labelled as received reached them (389 of 389, never less than labelled). ERC-20 legs only: native amounts are not in the logs. Three descriptors broken on purpose give 423, 56 and 9 differences.
 - 28 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan, a bridge deposit whose recipient is `0x…01`.
 - `registry-tests/` holds 24 of the real transactions in the test format of the ERC-7730 registry (raw transaction, token data, expected display), valid against its schema, for the day a runner supports the extension.
+- `cases/` holds the calls built to mislead as data: 40 cases, 15 of which must be refused, each with the call and what a careful wallet shows. With the 24 real transactions that is 64 cases a reader in any language can run ([format](cases/README.md)).
 
 ## What we learned
 
@@ -93,7 +94,7 @@ The wording of every label, command by command, is in [LABELS.md](LABELS.md).
 
 ```
 npm ci
-npm test                                  # descriptors, traps, the whole sample
+npm test                                  # descriptors, traps, the cases as data, the whole sample
 node schema-check.mjs <ERCs>/assets/erc-0000
 node controls.mjs survey/sample.json survey/limited.json   # reads receipts from a public node
 node registry-tests.mjs survey/sample.json survey/limited.json <registry>/specs/erc7730-tests-v2.schema.json

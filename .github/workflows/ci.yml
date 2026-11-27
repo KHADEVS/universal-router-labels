@@ -14,4 +14,6 @@ jobs:
       - name: the descriptors are the ones gen.mjs writes
         run: npm run gen && git diff --exit-code descriptors
       - run: npm test
+      - name: the cases are the ones the tests write
+        run: git diff --exit-code cases
       - run: node survey/wrong-version.mjs

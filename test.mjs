@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { AbiCoder, id } from 'ethers';
 import { render, Refused } from './reader.mjs';
 
@@ -30,43 +30,54 @@ const v3 = (p, { recipient = FLAG_ME, min = 990n * 10n ** 6n } = {}) => c.encode
 const PK = '(address,address,uint24,int24,address)', PATH = '(address,uint24,int24,address,bytes)[]';
 const isBad = (label) => (l) => l.toLowerCase() === `${label}: ${BAD}`.toLowerCase();
 const flat = (r) => r.fields.flatMap((f) => (f.steps ? f.steps.flatMap((s) => (s.steps ? s.steps : [s])) : [f])).map((f) => `${f.label}: ${f.value}`);
-const shown = (d, t) => flat(render(d, t, env));
-const refused = (d, t, why) => assert.throws(() => render(d, t, env), (e) => e instanceof Refused && why.test(e.message));
+// Every check made against one of the two descriptors is also kept as data, for readers in other languages.
+const kept = [];
+let current = '';
+const it = (name, fn) => test(name, () => { current = name; return fn(); });
+const keep = (d, t, outcome) => {
+  const router = d === D20 ? '2.0' : d === D21 ? '2.1' : null; // a descriptor altered for a test is not a case
+  if (router) kept.push({ name: current, router, tx: { from: t.from, to: t.to, value: '0x' + BigInt(t.value).toString(16), input: t.input }, ...outcome });
+};
+const shown = (d, t) => { const lines = flat(render(d, t, env)); keep(d, t, { display: lines }); return lines; };
+const refused = (d, t, why) => {
+  assert.throws(() => render(d, t, env), (e) => e instanceof Refused && why.test(e.message));
+  keep(d, t, { refused: true });
+};
 
-test('a plain V3 swap', () => {
+it('a plain V3 swap', () => {
   assert.deepEqual(shown(D20, tx('0x00', [v3(path(DAI, 500, USDC))])), ['Send: 1000 DAI', 'Minimum Output: 990 USDC', 'Recipient: You', 'Valid Until: 2026-11-25 09:46 UTC']);
 });
-test('a token appended to a packed path is refused (registry#3136)', () => {
+it('a token appended to a packed path is refused (registry#3136)', () => {
   refused(D20, tx('0x00', [v3(path(DAI, 500, WETH) + strip(USDC))]), /not enough bytes/);
 });
-test('the output token is the last hop', () => {
+it('the output token is the last hop', () => {
   assert.ok(shown(D20, tx('0x00', [v3(path(DAI, 500, WETH, 3000, USDC))])).includes('Minimum Output: 990 USDC'));
 });
-test('exact output paths are read in reverse', () => {
+it('exact output paths are read in reverse', () => {
   const x = c.encode(['address', 'uint256', 'uint256', 'bytes', 'bool'], [FLAG_ME, 10n ** 18n, 4000n * 10n ** 6n, path(WETH, 500, USDC), true]);
   assert.deepEqual(shown(D20, tx('0x01', [x])).slice(0, 2), ['Maximum to Send: 4000 USDC', 'Receive: 1 WETH']);
 });
-test('the output sent to another address is shown', () => {
+it('the output sent to another address is shown', () => {
   assert.ok(shown(D20, tx('0x00', [v3(path(DAI, 500, USDC), { recipient: BAD })])).some(isBad('Recipient')));
 });
-test('a portion taken after the swap is shown', () => {
+it('a portion taken after the swap is shown', () => {
   const fee = c.encode(['address', 'address', 'uint256'], [USDC, BAD, 9900n]);
   const l = shown(D20, tx('0x0006', [v3(path(DAI, 500, USDC)), fee]));
   assert.ok(l.includes('Fee: 99%') && l.some(isBad('Fee Recipient')));
 });
-test('a permit inside the plan shows the spender and the amount', () => {
+it('a permit inside the plan shows the spender and the amount', () => {
   const p = c.encode(['((address,uint160,uint48,uint48),address,uint256)', 'bytes'], [[[USDC, (1n << 160n) - 1n, (1n << 48n) - 1n, 0], BAD, 0], '0x']);
   const l = shown(D20, tx('0x0a', [p]));
   assert.ok(l.includes('Allow Spending: Unlimited USDC') && l.some(isBad('Spender')));
 });
-test('the revert-allowed flag does not hide the command', () => {
+it('the revert-allowed flag does not hide the command', () => {
   assert.equal(shown(D20, tx('0x80', [v3(path(DAI, 500, USDC))])).length, 4);
 });
-test('more commands than inputs is refused', () => refused(D20, tx('0x0004', [v3(path(DAI, 500, USDC))]), /as many tags/));
-test('commands without a label are refused', () => {
+it('more commands than inputs is refused', () => refused(D20, tx('0x0004', [v3(path(DAI, 500, USDC))]), /as many tags/));
+it('commands without a label are refused', () => {
   for (const k of ['0x0f', '0x11', '0x12', '0x14', '0x15', '0x20', '0x22', '0x3f']) refused(D20, tx(k, ['0x']), /no case/);
 });
-test('2.1: command 0x40 (Across deposit) is not read as a V3 swap', () => {
+it('2.1: command 0x40 (Across deposit) is not read as a V3 swap', () => {
   const x = v3(path(DAI, 500, USDC));
   refused(D21, tx('0x40', [x], { to: R21 }), /does not decode/);
   // what the 0x3f mask of the draft's example would do on a 2.1 router
@@ -80,49 +91,49 @@ const FLAG_ROUTER = '0x0000000000000000000000000000000000000002';
 const across = (o = {}) => tx('0x40', [c.encode(['(address,address,address,address,uint256,uint256,uint256,address,uint32,uint32,uint32,bytes,bool)'], [[
   o.depositor ?? ME, o.recipient ?? ME, o.inputToken ?? USDC, o.outputToken ?? USDC_BASE, o.inputAmount ?? 1000n * 10n ** 6n, o.outputAmount ?? 999n * 10n ** 6n,
   o.chain ?? 8453n, ZERO, 1795590000, 1795603600, 0, o.message ?? '0x', o.useNative ?? false]])], { to: R21 });
-test('Across: a deposit shows what arrives, on which chain, and to whom', () => {
+it('Across: a deposit shows what arrives, on which chain, and to whom', () => {
   assert.deepEqual(shown(D21, across()), ['Send: 1000 USDC', 'Receive on Destination: 999 USDC', 'Destination Chain: Base', 'Recipient on Destination: You',
     'Refund Address: You', 'Refunded if Not Filled by: 2026-11-25 10:46 UTC', 'Valid Until: 2026-11-25 09:46 UTC']);
 });
-test('Across: a native deposit is shown as ETH, and the token received is looked up on the other chain', () => {
+it('Across: a native deposit is shown as ETH, and the token received is looked up on the other chain', () => {
   const l = shown(D21, across({ useNative: true, inputToken: WETH, outputToken: WETH_UNICHAIN, chain: 130n, inputAmount: 10n ** 18n, outputAmount: 999n * 10n ** 15n }));
   assert.deepEqual(l.slice(0, 3), ['Send: 1 ETH', 'Receive on Destination: 0.999 WETH', 'Destination Chain: Unichain']);
   // the same address on a chain where the wallet does not know it
   assert.ok(shown(D21, across({ outputToken: WETH_UNICHAIN })).includes(`Receive on Destination: 999000000 (unknown token ${WETH_UNICHAIN})`));
 });
-test('Across: 0x…01 and 0x…02 are plain addresses, not "you" and "the router"', () => {
+it('Across: 0x…01 and 0x…02 are plain addresses, not "you" and "the router"', () => {
   const l = shown(D21, across({ recipient: FLAG_ME, depositor: FLAG_ROUTER }));
   assert.ok(l.includes(`Recipient on Destination: ${FLAG_ME}`) && l.includes(`Refund Address: ${FLAG_ROUTER}`));
 });
-test('Across: another recipient and another refund address are shown', () => {
+it('Across: another recipient and another refund address are shown', () => {
   const l = shown(D21, across({ recipient: BAD, depositor: BAD }));
   assert.ok(l.some(isBad('Recipient on Destination')) && l.some(isBad('Refund Address')));
 });
-test('Across: the whole balance of the router, and a message for the recipient', () => {
+it('Across: the whole balance of the router, and a message for the recipient', () => {
   const l = shown(D21, across({ inputAmount: 1n << 255n, message: '0x1234' }));
   assert.ok(l.includes('Send: Entire router balance USDC') && l.includes('Message for Recipient: 0x1234'));
 });
-test('Across: a deposit that names no output token is refused', () => refused(D21, across({ outputToken: ZERO }), /no case for 0x00/));
-test('Across: an unknown chain is shown by its number', () => assert.ok(shown(D21, across({ chain: 424242n })).includes('Destination Chain: chain 424242')));
+it('Across: a deposit that names no output token is refused', () => refused(D21, across({ outputToken: ZERO }), /no case for 0x00/));
+it('Across: an unknown chain is shown by its number', () => assert.ok(shown(D21, across({ chain: 424242n })).includes('Destination Chain: chain 424242')));
 
 const v4 = (actions, params, opt) => tx('0x10', [c.encode(['bytes', 'bytes[]'], [actions, params])], opt);
 const single20 = (z, hooks = ZERO, hookData = '0x') => c.encode([`(${PK},bool,uint128,uint128,bytes)`], [[[ZERO, USDC, 500, 10, hooks], z, 10n ** 18n, 3900n * 10n ** 6n, hookData]]);
-test('v4: the token sent follows the swap direction', () => {
+it('v4: the token sent follows the swap direction', () => {
   const end = [c.encode(['address', 'uint256'], [ZERO, 10n ** 18n]), c.encode(['address', 'uint256'], [USDC, 3900n * 10n ** 6n])];
   assert.deepEqual(shown(D20, v4('0x060c0f', [single20(true), ...end])).slice(0, 4), ['Send: 1 ETH', 'Minimum Output: 3900 USDC', 'Maximum to Send: 1 ETH', 'Minimum to Receive: 3900 USDC']);
   assert.deepEqual(shown(D20, v4('0x060c0f', [single20(false), ...end])).slice(0, 2), ['Send: 1000000000000 USDC', 'Minimum Output: 0.0000000039 ETH']);
 });
-test('v4: a hook and its data are shown', () => {
+it('v4: a hook and its data are shown', () => {
   const l = shown(D20, v4('0x06', [single20(true, BAD, '0x1234')]));
   assert.ok(l.some(isBad('Pool hook')) && l.includes('Hook data: 0x1234'));
 });
-test('v4: the output taken to another address is shown', () => {
+it('v4: the output taken to another address is shown', () => {
   assert.ok(shown(D20, v4('0x060e', [single20(true), c.encode(['address', 'address', 'uint256'], [USDC, BAD, 0])])).some(isBad('Recipient')));
 });
-test('v4: an action without a label is refused', () => refused(D20, v4('0x0614', [single20(true), '0x']), /no case for 0x14/));
+it('v4: an action without a label is refused', () => refused(D20, v4('0x0614', [single20(true), '0x']), /no case for 0x14/));
 
 // The same multi-hop swap, encoded for 2.1 and read with the tuple of 2.0: no error, wrong amounts.
-test('v4: a 2.1 multi-hop swap read with the 2.0 tuple', () => {
+it('v4: a 2.1 multi-hop swap read with the 2.0 tuple', () => {
   const swap = c.encode([`(address,${PATH},uint256[],uint128,uint128)`], [[ZERO, [[DAI, 500, 10, ZERO, '0x'], [USDC, 100, 1, ZERO, '0x']], [], 10n ** 18n, 3900n * 10n ** 6n]]);
   const t = v4('0x07', [swap], { to: R21 });
   assert.deepEqual(shown(D21, t).slice(0, 2), ['Send: 1 ETH', 'Minimum Output: 3900 USDC']);
@@ -131,33 +142,51 @@ test('v4: a 2.1 multi-hop swap read with the 2.0 tuple', () => {
   console.log('      read with the wrong tuple:', wrong.join(' | '));
 });
 
-test('a sub-plan is read like the plan itself, and hides nothing', () => {
+it('a sub-plan is read like the plan itself, and hides nothing', () => {
   const sub = c.encode(['bytes', 'bytes[]'], ['0x00', [v3(path(DAI, 500, USDC), { recipient: BAD })]]);
   const l = shown(D20, tx('0x21', [sub]));
   assert.ok(l.includes('Send: 1000 DAI') && l.some(isBad('Recipient')));
   // allowed to revert, as the interface uses it for partial fills
   assert.ok(shown(D20, tx('0xa1', [sub])).includes('Send: 1000 DAI'));
 });
-test('sub-plans nested too deep are refused', () => {
+it('sub-plans nested too deep are refused', () => {
   let sub = c.encode(['bytes', 'bytes[]'], ['0x00', [v3(path(DAI, 500, USDC))]]);
   for (let i = 0; i < 5; i++) sub = c.encode(['bytes', 'bytes[]'], ['0x21', [sub]]);
   refused(D20, tx('0x21', [sub]), /nested too deep/);
 });
-test('a batch permit shows every token and the spender', () => {
+it('a batch permit shows every token and the spender', () => {
   const p = c.encode(['((address,uint160,uint48,uint48)[],address,uint256)', 'bytes'], [[[[USDC, (1n << 160n) - 1n, 1795600000, 0], [DAI, 5n * 10n ** 18n, 1795600000, 0]], BAD, 0], '0x']);
   const l = shown(D20, tx('0x03', [p]));
   assert.ok(l.includes('Allow Spending: Unlimited USDC') && l.includes('Allow Spending: 5 DAI') && l.some(isBad('Spender')));
 });
-test('a batch transfer shows every recipient', () => {
+it('a batch transfer shows every recipient', () => {
   const p = c.encode(['(address,address,uint160,address)[]'], [[[ME, BAD, 7n * 10n ** 6n, USDC], [ME, FLAG_ME, 10n ** 18n, DAI]]]);
   const l = shown(D20, tx('0x0d', [p]));
   assert.ok(l.includes('Send: 7 USDC') && l.includes('Send: 1 DAI') && l.some(isBad('Recipient')));
 });
-test('2.1: a signed route shows the same plan', () => {
+it('2.1: a signed route shows the same plan', () => {
   const v = c.encode(['address', 'uint256', 'uint256', 'bytes', 'bool', 'uint256[]'], [BAD, 1000n * 10n ** 18n, 990n * 10n ** 6n, path(DAI, 500, USDC), true, []]);
   const input = '0x' + 'XXXXXXXX' + strip(c.encode(['bytes', 'bytes[]', 'bytes32', 'bytes32', 'bool', 'bytes32', 'bytes', 'uint256'], ['0x00', [v], '0x' + '11'.repeat(32), '0x' + '22'.repeat(32), true, '0x' + '33'.repeat(32), '0x' + '44'.repeat(65), 1795600000n]));
   const sel = id('executeSigned(bytes,bytes[],bytes32,bytes32,bool,bytes32,bytes,uint256)').slice(2, 10);
   const l = shown(D21, { from: ME, to: R21, value: 0n, input: input.replace('XXXXXXXX', sel) });
   assert.ok(l.includes('Send: 1000 DAI') && l.some(isBad('Recipient')) && l.at(-1).startsWith('Valid Until'));
   refused(D20, { from: ME, to: R20, value: 0n, input: input.replace('XXXXXXXX', sel) }, /unknown selector/);
+});
+
+// Each run rewrites cases/built-to-mislead.json; cases.mjs replays it, and CI checks it is the committed one.
+after(() => {
+  const numbered = kept.map((k, i, all) => {
+    const nth = all.slice(0, i).filter((x) => x.name === k.name).length + 1;
+    const many = all.filter((x) => x.name === k.name).length > 1;
+    return { ...k, name: many ? `${k.name} (${nth})` : k.name };
+  });
+  fs.mkdirSync('cases', { recursive: true });
+  fs.writeFileSync('cases/built-to-mislead.json', JSON.stringify({
+    about: 'Universal Router calls built to mislead a reader, with what a careful wallet shows, or the fact that it refuses. See cases/README.md.',
+    environment: {
+      chainId: 1, sender: ME, native: env.native, tokens: TOKENS, tokensOnOtherChains: ELSEWHERE, chainNames: CHAINS,
+      routers: { '2.0': R20, '2.1': R21 },
+    },
+    cases: numbered,
+  }, null, 1) + '\n');
 });
