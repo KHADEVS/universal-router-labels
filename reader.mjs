@@ -68,7 +68,9 @@ function format(f, value, scope, env) {
       let token = p.token ?? resolve(p.tokenPath, scope);
       if (Array.isArray(token)) token = token[scope.each]; // tokenPath and path iterate the same array
       token = token.toLowerCase();
-      const meta = token === p.nativeCurrencyAddress?.toLowerCase() ? env.native : env.token(token);
+      // a token on another chain is looked up there
+      const chain = p.chainId ?? (p.chainIdPath ? resolve(p.chainIdPath, scope) : undefined);
+      const meta = token === p.nativeCurrencyAddress?.toLowerCase() ? env.native : env.token(token, chain === undefined ? undefined : Number(chain));
       const symbol = meta?.symbol ?? `(unknown token ${token})`;
       if (p.threshold && value >= BigInt(p.threshold)) return `${p.message} ${symbol}`;
       return `${units(value, meta?.decimals ?? 0)} ${symbol}`;
@@ -80,7 +82,9 @@ function format(f, value, scope, env) {
       const a = value.toLowerCase();
       if (env.registry) return getAddress(p.senderAddress?.some((x) => x.toLowerCase() === a) ? scope.tx.from : a);
       if (p.senderAddress?.some((x) => x.toLowerCase() === a) || a === scope.tx.from.toLowerCase()) return 'You';
-      if (a === '0x0000000000000000000000000000000000000002' || a === scope.tx.to.toLowerCase()) return 'Uniswap router'; // not expressible today, see README
+      // 0x…02 is "the router" only where the router maps recipient flags, which are the fields that also map 0x…01.
+      // Not expressible today, see README.
+      if ((p.senderAddress && a === '0x0000000000000000000000000000000000000002') || a === scope.tx.to.toLowerCase()) return 'Uniswap router';
       if (p.types?.includes('token') && env.token(a)) return env.token(a).symbol;
       return value;
     }
@@ -88,6 +92,7 @@ function format(f, value, scope, env) {
       if (env.registry) return new Date(Number(value) * 1000).toISOString().slice(0, 19).replace('T', ' ') + 'Z';
       return new Date(Number(value) * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
     case 'unit': return `${units(value, p.decimals)}${p.base}`;
+    case 'chainId': return env.chain?.(Number(value)) ?? `chain ${value}`;
     default: return String(value);
   }
 }

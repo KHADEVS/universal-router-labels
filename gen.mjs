@@ -169,6 +169,26 @@ function build(version) {
     ] } },
     ...(v21 ? { '0x07': { '(address token,address recipient,uint256 portion)': { intent: 'Fee', fields: [
       percent('~.portion', 'Fee', 16), { path: '~.token', label: 'Fee Token', format: 'addressName', params: { types: ['token'] } }, recipient('~.recipient', 'Fee Recipient') ] } } } : {}),
+    // A deposit into the Across bridge. The router passes `depositor` and `recipient` to the pool as they are:
+    // 0x…01 and 0x…02 are plain addresses here, not "the sender" and "the router". Who relays, and from when, is
+    // not shown: it does not change what arrives.
+    ...(v21 ? { '0x40': { '((address depositor,address recipient,address inputToken,address outputToken,uint256 inputAmount,uint256 outputAmount,uint256 destinationChainId,address exclusiveRelayer,uint32 quoteTimestamp,uint32 fillDeadline,uint32 exclusivityDeadline,bytes message,bool useNative) deposit)': {
+      intent: 'Bridge', fields: [
+        { path: '~.deposit.inputAmount', label: 'Send', switch: { expression: { path: '~.deposit.useNative' }, cases: {
+          '0x01': { format: 'tokenAmount', params: { token: NATIVE, nativeCurrencyAddress: NATIVE, ...whole } },
+          '0x00': { format: 'tokenAmount', params: { tokenPath: '~.deposit.inputToken', ...whole } },
+        } } },
+        // Without an output token the pool picks one, and a wallet cannot say which: refused.
+        { path: '~.deposit.outputAmount', label: 'Receive on Destination', switch: { expression: { path: '~.deposit.outputToken' }, cases: {
+          '0x00': 'reject',
+          $default: { format: 'tokenAmount', params: { tokenPath: '~.deposit.outputToken', chainIdPath: '~.deposit.destinationChainId' } },
+        } } },
+        { path: '~.deposit.destinationChainId', label: 'Destination Chain', format: 'chainId' },
+        { path: '~.deposit.recipient', label: 'Recipient on Destination', format: 'addressName', params: { types: ['eoa', 'contract'], sources: ['local', 'ens'] } },
+        { path: '~.deposit.depositor', label: 'Refund Address', format: 'addressName', params: { types: ['eoa', 'contract'], sources: ['local', 'ens'] } },
+        { path: '~.deposit.fillDeadline', label: 'Refunded if Not Filled by', format: 'date', params: { encoding: 'timestamp' } },
+        { path: '~.deposit.message', label: 'Message for Recipient', format: 'raw', visible: { ifNotIn: ['0x'] } },
+      ] } } } : {}),
     $default: 'reject',
   };
 

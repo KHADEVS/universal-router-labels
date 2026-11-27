@@ -1268,6 +1268,113 @@
                     ]
                   }
                 },
+                "0x40": {
+                  "((address depositor,address recipient,address inputToken,address outputToken,uint256 inputAmount,uint256 outputAmount,uint256 destinationChainId,address exclusiveRelayer,uint32 quoteTimestamp,uint32 fillDeadline,uint32 exclusivityDeadline,bytes message,bool useNative) deposit)": {
+                    "intent": "Bridge",
+                    "fields": [
+                      {
+                        "path": "~.deposit.inputAmount",
+                        "label": "Send",
+                        "switch": {
+                          "expression": {
+                            "path": "~.deposit.useNative"
+                          },
+                          "cases": {
+                            "0x01": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "token": "0x0000000000000000000000000000000000000000",
+                                "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                                "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                                "message": "Entire router balance"
+                              }
+                            },
+                            "0x00": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "tokenPath": "~.deposit.inputToken",
+                                "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                                "message": "Entire router balance"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "path": "~.deposit.outputAmount",
+                        "label": "Receive on Destination",
+                        "switch": {
+                          "expression": {
+                            "path": "~.deposit.outputToken"
+                          },
+                          "cases": {
+                            "0x00": "reject",
+                            "$default": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "tokenPath": "~.deposit.outputToken",
+                                "chainIdPath": "~.deposit.destinationChainId"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "path": "~.deposit.destinationChainId",
+                        "label": "Destination Chain",
+                        "format": "chainId"
+                      },
+                      {
+                        "path": "~.deposit.recipient",
+                        "label": "Recipient on Destination",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.deposit.depositor",
+                        "label": "Refund Address",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.deposit.fillDeadline",
+                        "label": "Refunded if Not Filled by",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      },
+                      {
+                        "path": "~.deposit.message",
+                        "label": "Message for Recipient",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
                 "$default": "reject"
               }
             }
@@ -2526,6 +2633,113 @@
                     ]
                   }
                 },
+                "0x40": {
+                  "((address depositor,address recipient,address inputToken,address outputToken,uint256 inputAmount,uint256 outputAmount,uint256 destinationChainId,address exclusiveRelayer,uint32 quoteTimestamp,uint32 fillDeadline,uint32 exclusivityDeadline,bytes message,bool useNative) deposit)": {
+                    "intent": "Bridge",
+                    "fields": [
+                      {
+                        "path": "~.deposit.inputAmount",
+                        "label": "Send",
+                        "switch": {
+                          "expression": {
+                            "path": "~.deposit.useNative"
+                          },
+                          "cases": {
+                            "0x01": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "token": "0x0000000000000000000000000000000000000000",
+                                "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                                "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                                "message": "Entire router balance"
+                              }
+                            },
+                            "0x00": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "tokenPath": "~.deposit.inputToken",
+                                "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                                "message": "Entire router balance"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "path": "~.deposit.outputAmount",
+                        "label": "Receive on Destination",
+                        "switch": {
+                          "expression": {
+                            "path": "~.deposit.outputToken"
+                          },
+                          "cases": {
+                            "0x00": "reject",
+                            "$default": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "tokenPath": "~.deposit.outputToken",
+                                "chainIdPath": "~.deposit.destinationChainId"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "path": "~.deposit.destinationChainId",
+                        "label": "Destination Chain",
+                        "format": "chainId"
+                      },
+                      {
+                        "path": "~.deposit.recipient",
+                        "label": "Recipient on Destination",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.deposit.depositor",
+                        "label": "Refund Address",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.deposit.fillDeadline",
+                        "label": "Refunded if Not Filled by",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      },
+                      {
+                        "path": "~.deposit.message",
+                        "label": "Message for Recipient",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
                 "$default": "reject"
               }
             }
@@ -3770,6 +3984,113 @@
                           ],
                           "senderAddress": [
                             "0x0000000000000000000000000000000000000001"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "0x40": {
+                  "((address depositor,address recipient,address inputToken,address outputToken,uint256 inputAmount,uint256 outputAmount,uint256 destinationChainId,address exclusiveRelayer,uint32 quoteTimestamp,uint32 fillDeadline,uint32 exclusivityDeadline,bytes message,bool useNative) deposit)": {
+                    "intent": "Bridge",
+                    "fields": [
+                      {
+                        "path": "~.deposit.inputAmount",
+                        "label": "Send",
+                        "switch": {
+                          "expression": {
+                            "path": "~.deposit.useNative"
+                          },
+                          "cases": {
+                            "0x01": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "token": "0x0000000000000000000000000000000000000000",
+                                "nativeCurrencyAddress": "0x0000000000000000000000000000000000000000",
+                                "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                                "message": "Entire router balance"
+                              }
+                            },
+                            "0x00": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "tokenPath": "~.deposit.inputToken",
+                                "threshold": "0x8000000000000000000000000000000000000000000000000000000000000000",
+                                "message": "Entire router balance"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "path": "~.deposit.outputAmount",
+                        "label": "Receive on Destination",
+                        "switch": {
+                          "expression": {
+                            "path": "~.deposit.outputToken"
+                          },
+                          "cases": {
+                            "0x00": "reject",
+                            "$default": {
+                              "format": "tokenAmount",
+                              "params": {
+                                "tokenPath": "~.deposit.outputToken",
+                                "chainIdPath": "~.deposit.destinationChainId"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "path": "~.deposit.destinationChainId",
+                        "label": "Destination Chain",
+                        "format": "chainId"
+                      },
+                      {
+                        "path": "~.deposit.recipient",
+                        "label": "Recipient on Destination",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.deposit.depositor",
+                        "label": "Refund Address",
+                        "format": "addressName",
+                        "params": {
+                          "types": [
+                            "eoa",
+                            "contract"
+                          ],
+                          "sources": [
+                            "local",
+                            "ens"
+                          ]
+                        }
+                      },
+                      {
+                        "path": "~.deposit.fillDeadline",
+                        "label": "Refunded if Not Filled by",
+                        "format": "date",
+                        "params": {
+                          "encoding": "timestamp"
+                        }
+                      },
+                      {
+                        "path": "~.deposit.message",
+                        "label": "Message for Recipient",
+                        "format": "raw",
+                        "visible": {
+                          "ifNotIn": [
+                            "0x"
                           ]
                         }
                       }

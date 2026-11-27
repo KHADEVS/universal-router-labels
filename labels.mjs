@@ -1,16 +1,23 @@
 // Writes LABELS.md: what the user reads for each command, taken from the 2.1 descriptor.
 import fs from 'node:fs';
 const d = JSON.parse(fs.readFileSync('descriptors/universal-router-2.1.json'));
-const COMMANDS = { '0x00': 'V3_SWAP_EXACT_IN', '0x01': 'V3_SWAP_EXACT_OUT', '0x02': 'PERMIT2_TRANSFER_FROM', '0x03': 'PERMIT2_PERMIT_BATCH', '0x04': 'SWEEP', '0x05': 'TRANSFER', '0x06': 'PAY_PORTION', '0x07': 'PAY_PORTION_FULL_PRECISION', '0x08': 'V2_SWAP_EXACT_IN', '0x09': 'V2_SWAP_EXACT_OUT', '0x0a': 'PERMIT2_PERMIT', '0x0b': 'WRAP_ETH', '0x0c': 'UNWRAP_WETH', '0x0d': 'PERMIT2_TRANSFER_FROM_BATCH', '0x0e': 'BALANCE_CHECK_ERC20', '0x10': 'V4_SWAP', '0x13': 'V4_INITIALIZE_POOL', '0x21': 'EXECUTE_SUB_PLAN' };
+const COMMANDS = { '0x00': 'V3_SWAP_EXACT_IN', '0x01': 'V3_SWAP_EXACT_OUT', '0x02': 'PERMIT2_TRANSFER_FROM', '0x03': 'PERMIT2_PERMIT_BATCH', '0x04': 'SWEEP', '0x05': 'TRANSFER', '0x06': 'PAY_PORTION', '0x07': 'PAY_PORTION_FULL_PRECISION', '0x08': 'V2_SWAP_EXACT_IN', '0x09': 'V2_SWAP_EXACT_OUT', '0x0a': 'PERMIT2_PERMIT', '0x0b': 'WRAP_ETH', '0x0c': 'UNWRAP_WETH', '0x0d': 'PERMIT2_TRANSFER_FROM_BATCH', '0x0e': 'BALANCE_CHECK_ERC20', '0x10': 'V4_SWAP', '0x13': 'V4_INITIALIZE_POOL', '0x21': 'EXECUTE_SUB_PLAN', '0x40': 'ACROSS_V4_DEPOSIT_V3' };
 const ACTIONS = { '0x06': 'SWAP_EXACT_IN_SINGLE', '0x07': 'SWAP_EXACT_IN', '0x08': 'SWAP_EXACT_OUT_SINGLE', '0x09': 'SWAP_EXACT_OUT', '0x0b': 'SETTLE', '0x0c': 'SETTLE_ALL', '0x0e': 'TAKE', '0x0f': 'TAKE_ALL', '0x10': 'TAKE_PORTION' };
 
 function field(f) {
   if (f.interaction) return 'the commands of the sub-plan, as below';
   if (f.format === 'customEncoding' || f.visible === 'never' || (f.switch && f.path.endsWith('.[]'))) return null;
   const notes = [];
-  const p = f.params ?? Object.values(f.switch?.cases ?? {})[0]?.params ?? {};
+  const choices = Object.entries(f.switch?.cases ?? {});
+  const p = f.params ?? choices.map(([, c]) => c).find((c) => c?.params)?.params ?? {};
   if (p.threshold) notes.push(`"${p.message}" for ${p.threshold.length > 20 ? (p.threshold.startsWith('0x8') ? '2^255' : 'the maximum') : p.threshold}`);
-  if (f.switch) notes.push('token chosen by `zeroForOne`');
+  if (f.switch) {
+    const by = f.switch.expression.path.split('.').pop();
+    const refused = choices.find(([, c]) => c === 'reject');
+    if (refused) notes.push(`refused when \`${by}\` is ${refused[0] === '0x00' ? 'zero' : refused[0]}`);
+    else notes.push(by === 'useNative' ? 'ETH when `useNative`' : `token chosen by \`${by}\``);
+  }
+  if (p.chainIdPath) notes.push('token looked up on the destination chain');
   if (f.visible?.ifNotIn) notes.push(`hidden when ${JSON.stringify(f.visible.ifNotIn[0]).replace('"0x0000000000000000000000000000000000000000"', 'zero').replace('"0x"', 'empty')}`);
   if (p.senderAddress) notes.push('`0x…01` shown as the sender');
   return `**${f.label}**${notes.length ? ` (${notes.join(', ')})` : ''}`;
@@ -37,5 +44,7 @@ out.push('', 'Any other action: refused.', '',
   '- **Collect at Least** for `SWEEP`, which sends whatever the router holds.',
   '- **Paid by you** is shown only when it is false, that is when the router spends what it already holds.',
   '- An amount of 0 in `SETTLE` and `TAKE` means everything that is open. It is hidden, since "0 USDC" reads as nothing.',
-  '- A hook and its data are shown whenever the pool has one. The user cannot judge a hook, but should know there is one.', '');
+  '- A hook and its data are shown whenever the pool has one. The user cannot judge a hook, but should know there is one.',
+  '- In an Across deposit, **Recipient on Destination** and **Refund Address** are shown as they are. The router does not map `0x…01` and `0x…02` there, so they are not "you" and "the router".',
+  '- An Across deposit that names no output token is refused: the pool would pick one, and the wallet could not say which.', '');
 fs.writeFileSync('LABELS.md', out.join('\n'));

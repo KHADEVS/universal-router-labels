@@ -12,7 +12,14 @@ const ME = '0x1111111111111111111111111111111111111111', BAD = '0xbad00000000000
 const FLAG_ME = '0x0000000000000000000000000000000000000001', ZERO = '0x' + '0'.repeat(40);
 const DAI = '0x6b175474e89094c44da98b954eedeac495271d0f', WETH = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', USDC = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 const TOKENS = { [DAI]: { symbol: 'DAI', decimals: 18 }, [WETH]: { symbol: 'WETH', decimals: 18 }, [USDC]: { symbol: 'USDC', decimals: 6 } };
-const env = { native: { symbol: 'ETH', decimals: 18 }, token: (a) => TOKENS[a] ?? null };
+const USDC_BASE = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', WETH_UNICHAIN = '0x4200000000000000000000000000000000000006';
+const ELSEWHERE = { [`8453:${USDC_BASE}`]: { symbol: 'USDC', decimals: 6 }, [`130:${WETH_UNICHAIN}`]: { symbol: 'WETH', decimals: 18 } };
+const CHAINS = { 130: 'Unichain', 8453: 'Base' };
+const env = {
+  native: { symbol: 'ETH', decimals: 18 },
+  token: (a, chain) => (chain === undefined ? TOKENS[a] : ELSEWHERE[`${chain}:${a}`]) ?? null,
+  chain: (n) => CHAINS[n],
+};
 const strip = (x) => x.slice(2);
 const path = (...p) => '0x' + p.map((x) => (typeof x === 'number' ? x.toString(16).padStart(6, '0') : strip(x))).join('');
 
@@ -61,12 +68,42 @@ test('commands without a label are refused', () => {
 });
 test('2.1: command 0x40 (Across deposit) is not read as a V3 swap', () => {
   const x = v3(path(DAI, 500, USDC));
-  refused(D21, tx('0x40', [x], { to: R21 }), /no case for 0x40/);
+  refused(D21, tx('0x40', [x], { to: R21 }), /does not decode/);
   // what the 0x3f mask of the draft's example would do on a 2.1 router
   const wrong = JSON.parse(JSON.stringify(D21).replaceAll('"0x7f"', '"0x3f"'));
   const v = c.encode(['address', 'uint256', 'uint256', 'bytes', 'bool', 'uint256[]'], [FLAG_ME, 1000n * 10n ** 18n, 990n * 10n ** 6n, path(DAI, 500, USDC), true, []]);
   assert.ok(shown(wrong, tx('0x40', [v], { to: R21 })).includes('Send: 1000 DAI'));
 });
+
+// --- Across deposit (2.1+) ---
+const FLAG_ROUTER = '0x0000000000000000000000000000000000000002';
+const across = (o = {}) => tx('0x40', [c.encode(['(address,address,address,address,uint256,uint256,uint256,address,uint32,uint32,uint32,bytes,bool)'], [[
+  o.depositor ?? ME, o.recipient ?? ME, o.inputToken ?? USDC, o.outputToken ?? USDC_BASE, o.inputAmount ?? 1000n * 10n ** 6n, o.outputAmount ?? 999n * 10n ** 6n,
+  o.chain ?? 8453n, ZERO, 1795590000, 1795603600, 0, o.message ?? '0x', o.useNative ?? false]])], { to: R21 });
+test('Across: a deposit shows what arrives, on which chain, and to whom', () => {
+  assert.deepEqual(shown(D21, across()), ['Send: 1000 USDC', 'Receive on Destination: 999 USDC', 'Destination Chain: Base', 'Recipient on Destination: You',
+    'Refund Address: You', 'Refunded if Not Filled by: 2026-11-25 10:46 UTC', 'Valid Until: 2026-11-25 09:46 UTC']);
+});
+test('Across: a native deposit is shown as ETH, and the token received is looked up on the other chain', () => {
+  const l = shown(D21, across({ useNative: true, inputToken: WETH, outputToken: WETH_UNICHAIN, chain: 130n, inputAmount: 10n ** 18n, outputAmount: 999n * 10n ** 15n }));
+  assert.deepEqual(l.slice(0, 3), ['Send: 1 ETH', 'Receive on Destination: 0.999 WETH', 'Destination Chain: Unichain']);
+  // the same address on a chain where the wallet does not know it
+  assert.ok(shown(D21, across({ outputToken: WETH_UNICHAIN })).includes(`Receive on Destination: 999000000 (unknown token ${WETH_UNICHAIN})`));
+});
+test('Across: 0x…01 and 0x…02 are plain addresses, not "you" and "the router"', () => {
+  const l = shown(D21, across({ recipient: FLAG_ME, depositor: FLAG_ROUTER }));
+  assert.ok(l.includes(`Recipient on Destination: ${FLAG_ME}`) && l.includes(`Refund Address: ${FLAG_ROUTER}`));
+});
+test('Across: another recipient and another refund address are shown', () => {
+  const l = shown(D21, across({ recipient: BAD, depositor: BAD }));
+  assert.ok(l.some(isBad('Recipient on Destination')) && l.some(isBad('Refund Address')));
+});
+test('Across: the whole balance of the router, and a message for the recipient', () => {
+  const l = shown(D21, across({ inputAmount: 1n << 255n, message: '0x1234' }));
+  assert.ok(l.includes('Send: Entire router balance USDC') && l.includes('Message for Recipient: 0x1234'));
+});
+test('Across: a deposit that names no output token is refused', () => refused(D21, across({ outputToken: ZERO }), /no case for 0x00/));
+test('Across: an unknown chain is shown by its number', () => assert.ok(shown(D21, across({ chain: 424242n })).includes('Destination Chain: chain 424242')));
 
 const v4 = (actions, params, opt) => tx('0x10', [c.encode(['bytes', 'bytes[]'], [actions, params])], opt);
 const single20 = (z, hooks = ZERO, hookData = '0x') => c.encode([`(${PK},bool,uint128,uint128,bytes)`], [[[ZERO, USDC, 500, 10, hooks], z, 10n ** 18n, 3900n * 10n ** 6n, hookData]]);

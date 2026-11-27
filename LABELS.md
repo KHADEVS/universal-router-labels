@@ -26,6 +26,7 @@ Every call starts with **Uniswap trade**, then **Native Amount** when ETH is sen
 | `0x13` V4_INITIALIZE_POOL | Create pool | **Token** · **Token** · **Pool hook** (hidden when zero) · **Starting Price (sqrt, Q96)** |
 | `0x21` EXECUTE_SUB_PLAN | Sub-plan | the commands of the sub-plan, as below |
 | `0x07` PAY_PORTION_FULL_PRECISION | Fee | **Fee** · **Fee Token** · **Fee Recipient** (`0x…01` shown as the sender) |
+| `0x40` ACROSS_V4_DEPOSIT_V3 | Bridge | **Send** ("Entire router balance" for 2^255, ETH when `useNative`) · **Receive on Destination** (refused when `outputToken` is zero, token looked up on the destination chain) · **Destination Chain** · **Recipient on Destination** · **Refund Address** · **Refunded if Not Filled by** · **Message for Recipient** (hidden when empty) |
 
 Any other command: the transaction is refused, not shown in part.
 
@@ -52,3 +53,5 @@ Any other action: refused.
 - **Paid by you** is shown only when it is false, that is when the router spends what it already holds.
 - An amount of 0 in `SETTLE` and `TAKE` means everything that is open. It is hidden, since "0 USDC" reads as nothing.
 - A hook and its data are shown whenever the pool has one. The user cannot judge a hook, but should know there is one.
+- In an Across deposit, **Recipient on Destination** and **Refund Address** are shown as they are. The router does not map `0x…01` and `0x…02` there, so they are not "you" and "the router".
+- An Across deposit that names no output token is refused: the pool would pick one, and the wallet could not say which.

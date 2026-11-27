@@ -57,16 +57,16 @@ The same two files, unchanged, on calls sampled over the same 24 hours:
 
 ### Commands
 
-Described: the two v2 and two v3 swaps, `V4_SWAP` with its 9 actions, Permit2 permits and transfers (single and batch), `SWEEP`, `TRANSFER`, both fee portions, wrap and unwrap, the balance check, pool creation, sub-plans, and `executeSigned` on 2.1+.
+Described: the two v2 and two v3 swaps, `V4_SWAP` with its 9 actions, Permit2 permits and transfers (single and batch), `SWEEP`, `TRANSFER`, both fee portions, wrap and unwrap, the balance check, pool creation, sub-plans, and on 2.1+ `executeSigned` and the Across deposit.
 
-Refused: calls to the v3 and v4 position managers (their address differs per chain, and a descriptor has no per-deployment constant) and the Across deposit.
+Refused: calls to the v3 and v4 position managers (their address differs per chain, and a descriptor has no per-deployment constant).
 
 ## Checks
 
 - Both descriptors are valid against the draft's schema, with its ten examples as a control.
 - The 1,994 transactions render. The survey was decoded a second time with ethers.
 - **Labels against receipts.** For the 681 transactions with a limit, 619 succeeded. In plans with a single swap, the token labelled as sent left the signer (259 of 259, never more than labelled) and the token labelled as received reached them (389 of 389, never less than labelled). ERC-20 legs only: native amounts are not in the logs. Three descriptors broken on purpose give 423, 56 and 9 differences.
-- 21 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan.
+- 28 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan, a bridge deposit whose recipient is `0x…01`.
 - `registry-tests/` holds 24 of the real transactions in the test format of the ERC-7730 registry (raw transaction, token data, expected display), valid against its schema, for the day a runner supports the extension.
 
 ## What we learned
