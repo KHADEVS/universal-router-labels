@@ -44,16 +44,27 @@ Uniswap trade
 
 The same descriptors, built with each chain's own position managers, on calls sampled over the same 24 hours:
 
-| chain | blocks | router calls | on 2.0 / 2.1+ | rendered |
+| chain | blocks | router calls | on 1.x / 2.0 / 2.1+ | rendered |
 |---|---|---|---|---|
-| Unichain | 5,000 | 963 | 951 / 12 | 963 |
-| Base | 3,000 | 456 | 423 / 33 | 456 |
-| BNB Chain | 1,500 | 262 | 223 / 39 | 262 |
-| Arbitrum | 12,000 | 68 | 24 / 44 | 68 |
-| Polygon | 1,488 | 55 | 10 / 45 | 55 |
-| Optimism | 2,000 | 5 | 2 / 3 | 5 |
+| Unichain | 5,000 | 963 | 0 / 951 / 12 | 963 |
+| Base | 3,000 | 456 | 0 / 423 / 33 | 456 |
+| BNB Chain | 1,500 | 267 | 5 / 223 / 39 | 267 |
+| Arbitrum | 12,000 | 68 | 0 / 24 / 44 | 68 |
+| Polygon | 1,488 | 72 | 17 / 10 / 45 | 72 |
+| Optimism | 2,000 | 5 | 0 / 2 / 3 | 5 |
 
-1,809 of 1,809. One of them creates a v4 position through the router (command `0x14`). 22 more calls went to routers older than 2.0 (17 on Polygon, 5 on BNB Chain), which have another command table and no descriptor here. Block counts differ because block times do; these samples are small.
+1,831 of 1,831. One of them creates a v4 position through the router (command `0x14`). 22 went to routers older than 2.0, which have two more descriptors here (`survey/older-routers.mjs` lists what those calls carry). Block counts differ because block times do; these samples are small.
+
+### Four generations of routers
+
+| Descriptor | Routers | Command bits read | What it adds |
+|---|---|---|---|
+| `universal-router-1.0.json` | the first one | 5 (`0x1f`) | v2 and v3 swaps, Permit2, payments, wrap and unwrap |
+| `universal-router-1.2.json` | 1.2 | 6 (`0x3f`) | the balance check, sub-plans |
+| `universal-router-2.0.json` | 2.0 | 6 (`0x3f`) | v4 swaps, pool creation, position manager calls |
+| `universal-router-2.1.json` | 2.1 and 2.2 | 7 (`0x7f`) | per-hop price limits, the full-precision fee, signed routes, the Across deposit |
+
+The command tables and masks of the two older generations were read in the verified source of the deployed routers (Sourcify, exact matches on Mainnet, BNB Chain and Polygon). Their NFT purchases are not described: a call that holds one is refused.
 
 ### Commands
 
@@ -63,16 +74,16 @@ The v4 position manager needs more than the draft: `unlockData` is bytes that ho
 
 ## Checks
 
-- The two router descriptors are valid against the draft's schema, with its ten examples as a control. The position manager's is valid against the schema of the fuller draft.
+- The four router descriptors are valid against the draft's schema, with its ten examples as a control. The position manager's is valid against the schema of the fuller draft.
 - The 1,994 transactions render. The survey was decoded a second time with ethers.
 - **Labels against receipts.** For the 681 transactions with a limit, 619 succeeded. In plans with a single swap, the token labelled as sent left the signer (259 of 259, never more than labelled) and the token labelled as received reached them (389 of 389, never less than labelled). ERC-20 legs only: native amounts are not in the logs. Three descriptors broken on purpose give 423, 56 and 9 differences.
-- 41 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan, a bridge deposit whose recipient is `0x…01`, a v3 position permit for someone other than the router, a v4 position whose owner is `0x…01`.
+- 45 tests with transactions built to mislead: an address appended to a packed path, output sent elsewhere, a 99% fee after the swap, a permit inside the plan, a hook, more commands than inputs, unknown commands, a recipient hidden in a sub-plan, a bridge deposit whose recipient is `0x…01`, a v3 position permit for someone other than the router, a v4 position whose owner is `0x…01`, a command byte that means a swap on one router and a sub-plan on the next.
 - `registry-tests/` holds 24 of the real transactions in the test format of the ERC-7730 registry (raw transaction, token data, expected display), valid against its schema, for the day a runner supports the extension.
-- `cases/` holds the calls built to mislead as data: 53 cases, 17 of which must be refused, each with the call and what a careful wallet shows. With the 24 real transactions that is 77 cases a reader in any language can run ([format](cases/README.md)).
+- `cases/` holds the calls built to mislead as data: 71 cases, 30 of which must be refused, each with the call and what a careful wallet shows. With the 24 real transactions that is 95 cases a reader in any language can run ([format](cases/README.md)).
 
 ## What we learned
 
-**1. Routers 2.0 and 2.1+ need separate descriptors.** 2.1 widened the command mask from `0x3f` to `0x7f` and added `minHopPriceX36` in the middle of the v4 tuples. Of the 33 calls with a v4 multi-hop swap sent to 2.1 routers, 30 are accepted by the 2.0 descriptor, all with wrong amounts, and 3 are refused. The other way round, all 50 are refused (`survey/wrong-version.mjs`). A test shows 1 ETH displayed as 0.00000000000000064 ETH. With the `0x3f` mask on a 2.1 router, command `0x40` (Across deposit) is read as a v3 swap.
+**1. Routers 2.0 and 2.1+ need separate descriptors.** 2.1 widened the command mask from `0x3f` to `0x7f` and added `minHopPriceX36` in the middle of the v4 tuples. Of the 33 calls with a v4 multi-hop swap sent to 2.1 routers, 30 are accepted by the 2.0 descriptor, all with wrong amounts, and 3 are refused. The other way round, all 50 are refused (`survey/wrong-version.mjs`). A test shows 1 ETH displayed as 0.00000000000000064 ETH. With the `0x3f` mask on a 2.1 router, command `0x40` (Across deposit) is read as a v3 swap. The same holds further back: the first router reads five bits of a command, so the byte `0x21` is a v3 swap there and a sub-plan from 1.2 on.
 
 **2. The token of a v4 amount depends on `zeroForOne`**, in 1,776 of the 1,994 transactions. A `switch` whose cases are `{format, params}` does it. The draft's schema accepts that form, its text does not mention it.
 
@@ -108,6 +119,6 @@ node registry-tests.mjs survey/sample.json survey/limited.json <registry>/specs/
 
 ## Not done
 
-Routers older than 2.0, receipts on other chains, hardware screens, translation. The reader is for checking the labels, not for a wallet.
+NFT purchases on the routers before 2.0, receipts on other chains, hardware screens, translation. The reader is for checking the labels, not for a wallet.
 
 MIT licence.

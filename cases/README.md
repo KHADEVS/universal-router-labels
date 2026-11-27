@@ -4,7 +4,7 @@ Calls to the Universal Router with what a careful wallet shows for each, or the 
 
 | File | Cases | What they are |
 |---|---|---|
-| `built-to-mislead.json` | 53 | Calls built by hand to mislead: output sent elsewhere, a fee taken after the swap, an address appended to a path, a bridge recipient that looks like a flag, a position permit for a stranger, a new position owned by the router. 17 of them must be refused. |
+| `built-to-mislead.json` | 71 | Calls built by hand to mislead: output sent elsewhere, a fee taken after the swap, an address appended to a path, a bridge recipient that looks like a flag, a position permit for a stranger, a new position owned by the router, a command read differently by an older router. 30 of them must be refused. |
 | `../registry-tests/*.tests.json` | 24 | Real Mainnet transactions, in the test format of the ERC-7730 registry. |
 
 ## Format of `built-to-mislead.json`
@@ -19,7 +19,7 @@ Calls to the Universal Router with what a careful wallet shows for each, or the 
     "tokensOnOtherChains": { "<chainId>:<address>": { "symbol", "decimals" } },
     "chainNames": { "<chainId>": "<name>" },
     "descriptorsOfCalledContracts": { "<address>": "<file>" },   // for the calls the router forwards
-    "routers": { "2.0": "<address>", "2.1": "<address>" }
+    "routers": { "1.0": "<address>", "1.2": "<address>", "2.0": "<address>", "2.1": "<address>" }
   },
   "cases": [
     { "name": "…", "router": "2.0", "tx": { "from", "to", "value", "input" }, "display": ["Label: value", …] },

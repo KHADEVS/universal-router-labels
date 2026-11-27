@@ -6,7 +6,8 @@ import { render, Refused } from './reader.mjs';
 
 const c = AbiCoder.defaultAbiCoder();
 const load = (v) => JSON.parse(fs.readFileSync(`descriptors/universal-router-${v}.json`));
-const D20 = load('2.0'), D21 = load('2.1');
+const D10 = load('1.0'), D12 = load('1.2'), D20 = load('2.0'), D21 = load('2.1');
+const R10 = '0xef1c6e67703c7bd7107eed8303fbe6ec2554bf6b', R12 = '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad';
 const R20 = '0x66a9893cc07d91d95644aedd05d03f95e1dba8af', R21 = '0x23617e59a5925b2a4bf75d73ff6711cd0b29de85';
 const ME = '0x1111111111111111111111111111111111111111', BAD = '0xbad0000000000000000000000000000000000bad';
 const FLAG_ME = '0x0000000000000000000000000000000000000001', ZERO = '0x' + '0'.repeat(40);
@@ -37,12 +38,13 @@ const v3 = (p, { recipient = FLAG_ME, min = 990n * 10n ** 6n } = {}) => c.encode
 const PK = '(address,address,uint24,int24,address)', PATH = '(address,uint24,int24,address,bytes)[]';
 const isBad = (label) => (l) => l.toLowerCase() === `${label}: ${BAD}`.toLowerCase();
 const flat = (r) => r.fields.flatMap((f) => (f.steps ? f.steps.flatMap((s) => (s.steps ? s.steps : [s])) : [f])).map((f) => `${f.label}: ${f.value}`);
-// Every check made against one of the two descriptors is also kept as data, for readers in other languages.
+// Every check made against one of the router descriptors is also kept as data, for readers in other languages.
 const kept = [];
 let current = '';
 const it = (name, fn) => test(name, () => { current = name; return fn(); });
+const VERSIONS = new Map([[D10, '1.0'], [D12, '1.2'], [D20, '2.0'], [D21, '2.1']]);
 const keep = (d, t, outcome) => {
-  const router = d === D20 ? '2.0' : d === D21 ? '2.1' : null; // a descriptor altered for a test is not a case
+  const router = VERSIONS.get(d) ?? null; // a descriptor altered for a test is not a case
   if (router) kept.push({ name: current, router, tx: { from: t.from, to: t.to, value: '0x' + BigInt(t.value).toString(16), input: t.input }, ...outcome });
 };
 const shown = (d, t) => { const lines = flat(render(d, t, env)); keep(d, t, { display: lines }); return lines; };
@@ -91,6 +93,32 @@ it('2.1: command 0x40 (Across deposit) is not read as a V3 swap', () => {
   const wrong = JSON.parse(JSON.stringify(D21).replaceAll('"0x7f"', '"0x3f"'));
   const v = c.encode(['address', 'uint256', 'uint256', 'bytes', 'bool', 'uint256[]'], [FLAG_ME, 1000n * 10n ** 18n, 990n * 10n ** 6n, path(DAI, 500, USDC), true, []]);
   assert.ok(shown(wrong, tx('0x40', [v], { to: R21 })).includes('Send: 1000 DAI'));
+});
+
+// --- routers older than 2.0 ---
+const exactOut = c.encode(['address', 'uint256', 'uint256', 'bytes', 'bool'], [FLAG_ME, 10n ** 18n, 4000n * 10n ** 6n, path(WETH, 500, USDC), true]);
+it('1.x: a swap on the two older routers reads as on 2.0', () => {
+  for (const [d, to] of [[D10, R10], [D12, R12]]) {
+    assert.deepEqual(shown(d, tx('0x00', [v3(path(DAI, 500, USDC))], { to })), ['Send: 1000 DAI', 'Minimum Output: 990 USDC', 'Recipient: You', 'Valid Until: 2026-11-25 09:46 UTC']);
+  }
+});
+it('1.0: the router reads five bits of a command, so 0x21 is a V3 swap there, and a sub-plan on 1.2', () => {
+  assert.deepEqual(shown(D10, tx('0x21', [exactOut], { to: R10 })).slice(0, 2), ['Maximum to Send: 4000 USDC', 'Receive: 1 WETH']);
+  refused(D12, tx('0x21', [exactOut], { to: R12 }), /does not decode/);
+  // what the 0x3f mask of the later routers would do on the first one: a real swap is refused
+  const wrong = JSON.parse(JSON.stringify(D10).replaceAll('"0x1f"', '"0x3f"'));
+  assert.throws(() => render(wrong, tx('0x21', [exactOut], { to: R10 }), env), (e) => e instanceof Refused && /no case for 0x21/.test(e.message));
+});
+it('1.2: a sub-plan and a balance check are read', () => {
+  const sub = c.encode(['bytes', 'bytes[]'], ['0x00', [v3(path(DAI, 500, USDC), { recipient: BAD })]]);
+  assert.ok(shown(D12, tx('0x21', [sub], { to: R12 })).some(isBad('Recipient')));
+  const check = c.encode(['address', 'address', 'uint256'], [ME, USDC, 5n * 10n ** 6n]);
+  assert.deepEqual(shown(D12, tx('0x0e', [check], { to: R12 })).slice(0, 2), ['Require Balance of: 5 USDC', 'Owner: You']);
+});
+it('1.x: an NFT purchase, a v4 swap and a position call are refused', () => {
+  for (const [d, to] of [[D10, R10], [D12, R12]]) for (const k of ['0x10', '0x11', '0x13', '0x14', '0x1c']) refused(d, tx(k, ['0x'], { to }), /no case/);
+  refused(D10, tx('0x0e', ['0x'], { to: R10 }), /no case/); // no balance check on the first router
+  refused(D12, tx('0x22', ['0x'], { to: R12 }), /no case/); // the approval of an NFT marketplace
 });
 
 // --- calls forwarded to the v3 position manager (moving a position to v4) ---
@@ -268,7 +296,7 @@ after(() => {
     environment: {
       chainId: 1, sender: ME, native: env.native, tokens: TOKENS, tokensOnOtherChains: ELSEWHERE, chainNames: CHAINS,
       descriptorsOfCalledContracts: { [V3_POSITIONS]: V3_POSITIONS_FILE, [V4_POSITIONS]: V4_POSITIONS_FILE },
-      routers: { '2.0': R20, '2.1': R21 },
+      routers: { '1.0': R10, '1.2': R12, '2.0': R20, '2.1': R21 },
     },
     cases: numbered,
   }, null, 1) + '\n');

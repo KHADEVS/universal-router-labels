@@ -22,6 +22,8 @@ const WHOLE_BALANCE = '0x8000000000000000000000000000000000000000000000000000000
 const MAX_U160 = '0xffffffffffffffffffffffffffffffffffffffff';
 
 const DEPLOYMENTS = {
+  '1.0': [{ chainId: 1, address: '0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B' }],
+  '1.2': [{ chainId: 1, address: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD' }],
   '2.0': [{ chainId: 1, address: '0x66a9893cc07d91d95644aedd05d03f95e1dba8af' }],
   '2.1': [
     { chainId: 1, address: '0x4C82D1fBFe28C977cBB58D8C7FF8FCF9F70a2cCA' },
@@ -214,17 +216,24 @@ export function build(version, chainId = 1) {
       ] } } } : {}),
     $default: 'reject',
   };
+  // The routers before 2.0 have no v4 and no position commands. The first one also lacks the balance check and the
+  // sub-plan, and reads five bits of a command where its successor reads six. Their NFT purchases are not
+  // described: a call that holds one is refused.
+  const older = version.startsWith('1.');
+  if (older) for (const k of ['0x10', '0x11', '0x12', '0x13', '0x14']) delete cases[k];
+  if (version === '1.0') for (const k of ['0x0e', '0x21']) delete cases[k];
+  const mask = v21 ? '0x7f' : version === '1.0' ? '0x1f' : '0x3f';
 
   const fields = [
     { path: '#.commands', visible: 'never', format: 'customEncoding', params: { type: 'sequence', element: { type: 'uint', bytes: 1 } } },
-    { path: '#.inputs.[]', label: 'Step', switch: { expression: { path: '#.commands.[$index]', mask: v21 ? '0x7f' : '0x3f' }, cases } },
+    { path: '#.inputs.[]', label: 'Step', switch: { expression: { path: '#.commands.[$index]', mask }, cases } },
   ];
   const native = { path: '@.value', label: 'Native Amount', format: 'amount', visible: { ifNotIn: [0] } };
   return {
     $schema: 'https://eips.ethereum.org/assets/eip-7730/erc7730-non-abi-dispatch.schema.json',
     context: { $id: `Uniswap Universal Router ${version}`, contract: { deployments: chainId === 1 ? DEPLOYMENTS[version] : [] } },
     metadata: { owner: 'Uniswap Labs', contractName: 'Universal Router', info: { url: 'https://uniswap.org/' },
-      constants: { v3PositionManager: POSITION_MANAGERS[chainId].v3, v4PositionManager: POSITION_MANAGERS[chainId].v4 } },
+      ...(older ? {} : { constants: { v3PositionManager: POSITION_MANAGERS[chainId].v3, v4PositionManager: POSITION_MANAGERS[chainId].v4 } }) },
     display: { formats: {
       'execute(bytes commands,bytes[] inputs,uint256 deadline)': { $id: 'execute with deadline', intent: 'Uniswap trade',
         fields: [native, ...fields, { path: '#.deadline', label: 'Valid Until', format: 'date', params: { encoding: 'timestamp' } }] },
@@ -299,6 +308,6 @@ export function buildPositions(chainId = 1) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   fs.mkdirSync('descriptors', { recursive: true });
-  for (const v of ['2.0', '2.1']) fs.writeFileSync(`descriptors/universal-router-${v}.json`, JSON.stringify(build(v), null, 2) + '\n');
+  for (const v of ['1.0', '1.2', '2.0', '2.1']) fs.writeFileSync(`descriptors/universal-router-${v}.json`, JSON.stringify(build(v), null, 2) + '\n');
   fs.writeFileSync('descriptors/v4-position-manager.json', JSON.stringify(buildPositions(), null, 2) + '\n');
 }
