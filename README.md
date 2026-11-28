@@ -4,6 +4,15 @@ What a wallet should show when someone signs a Universal Router call, written as
 
 This is a proposal, not a registry entry: the draft is not merged, and no wallet supports it yet.
 
+| Where it stands | |
+|---|---|
+| Router generations described | 4: the first one, 1.2, 2.0, and 2.1 with 2.2 |
+| Mainnet calls that render | 1,994 of 1,994 sampled |
+| Calls on six other chains | 1,831 of 1,831 sampled |
+| Cases published as data | 95; a wallet must refuse 30 of them |
+| Already in front of the registry | a fix for its UniswapX descriptors, [pull request 3293](https://github.com/ethereum/clear-signing-erc7730-registry/pull/3293) |
+| Wallets that read these files | none yet: the extension is a draft |
+
 ## Why
 
 Most Uniswap swaps reach the chain as one call to a Universal Router: `execute(commands, inputs, deadline)`. The swap, its recipient, its minimum and its fees are packed inside `commands` and `inputs`, which are not plain ABI data. A wallet that reads ERC-7730 descriptors can show the deadline and the native amount, and nothing else. On a hardware wallet that means signing the swap blind, unless the vendor wrote a decoder of its own.
